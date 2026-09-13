@@ -1,4 +1,10 @@
 {
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:docs.expo.dev)",
+      "Bash(npx expo *)"
+    ]
+  },
   "enabledPlugins": {
     "expo@claude-plugins-official": true
   }

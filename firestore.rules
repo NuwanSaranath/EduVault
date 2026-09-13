@@ -1,0 +1,56 @@
+rules_version = '2';
+
+/**
+ * EduVault security rules.
+ *
+ * The whole model rests on one decision from docs/03-architecture.md: user-owned
+ * data is nested under users/{uid}, and syllabus content is top-level and
+ * read-only. That split is what lets the entire ownership rule be a single uid
+ * comparison rather than a per-collection policy.
+ */
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Syllabus content: readable by any signed-in student, never client-writable.
+    // Publishing happens through the authoring action in Settings, which runs
+    // against the Admin SDK or a privileged account — not the student's session.
+    match /subjects/{subjectId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    match /chapters/{chapterId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    match /lessons/{lessonId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    match /questions/{questionId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    match /pastPapers/{paperId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // ── The leaderboard is aggregate, so it is read-only to clients. Writing it
+    // from the app would let any student set their own rank.
+    match /leaderboard/{entryId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // ── Everything a student owns. One rule covers the profile and every
+    // subcollection: attempts, paperResults, planner, progress, bookmarks,
+    // tutorQuestions.
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      match /{subcollection=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+  }
+}
