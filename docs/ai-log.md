@@ -243,3 +243,190 @@ what actually found them.
 **v54** docs, matching what is installed. Reconcile before adding further SDK
 packages — following the v57 docs against an SDK 54 install is how failure #3 happens
 again.
+
+---
+
+## Session 2 — 2026-09-13 · Lesson animations
+
+### Prompt used
+
+> "I want to show animation for practical and other necessary places then student
+> can get good idea about lesson. Read this lesson and generate complete script
+> for animation, how to show animation etc."
+
+Target content: `src/constants/data/lessons/chemistryAtomicStructure.ts` — 1078
+lines, seven lessons, Sinhala, covering NIE Grade 12 Chemistry Unit 1.
+
+### What was built
+
+A lesson animation system plus six scenes, all live under a new **සජීවීකරණ** tab
+in the lesson reader. Full write-up in
+[09-animation-script.md](09-animation-script.md).
+
+- `features/animation/` — pure timing helpers, scene types, shared palette, registry
+- `components/animations/` — `AnimationPlayer` (clock, transport, scrubber, captions) and six SVG scenes
+- Three **practicals**: cathode ray tube, Millikan oil drop, Rutherford gold foil
+- Three **concepts**: isotope builder, energy quantisation, hydrogen spectrum
+- 48 new tests (108 total)
+
+**Verification:** `tsc --noEmit` → 0 errors · `jest` → 108 passed ·
+`expo export --platform android` → bundles clean (7.38 MB, +90 KB).
+
+### Design decisions worth defending
+
+**A scene is a pure function of elapsed time.** No state accumulates between
+frames. This single rule is what makes scrubbing, stage-stepping, caption sync
+and reduce-motion fall out for free, and it makes the timing layer unit-testable
+without mounting a component.
+
+**The clock is in JavaScript, not Reanimated** — the only animation in the app
+that is. A teaching animation must keep a Sinhala caption in lockstep with the
+drawing, and captions are React state, so a UI-thread clock would need `runOnJS`
+at every stage boundary anyway. Capped at 30fps and stopped entirely when paused,
+finished, off-tab, or reduce-motion is on.
+
+**Sinhala labels are RN `<Text>`, not SVG `<Text>`.** Complex-script shaping is
+handled by the platform text engine but historically unreliable inside
+`react-native-svg` on Android. RN text also inherits font scaling and dark-mode
+colour for free.
+
+**The physics is computed, not hand-drawn.** Rutherford deflection comes from
+`θ = 2·arctan(k/b)`, so "smaller impact parameter → larger deflection" *emerges*
+rather than being scripted per particle. Hydrogen line positions come from
+`Eₙ = −1312/n²`, so a student can check them against their textbook.
+
+### Failures encountered
+
+**1. Shell mangled backticks inside a Node `-e` string.** Writing the JSX panel
+through `node -e "…"` with a template literal produced
+`bash: line 46: active\: No such file or directory`, and the inserted comment came
+out as `{/*  is bound to the tab…` — the backticked identifier silently deleted.
+Fixed with the editor tooling. **Lesson:** never pass code containing backticks
+through a double-quoted shell string; the failure is silent corruption, not an
+error.
+
+**2. Referenced two variables that did not exist.** The inserted panel used
+`animationScenes` and `isDark`, neither defined in `TheoryLessonScreen`. Caught
+immediately by `tsc` (`Cannot find name 'lessonAnimations'`). Added
+`useColorScheme` and a memoised `scenesForLesson(lesson?.animationIds)`. Renamed
+the local to `lessonAnimations` to avoid shadowing the registry export.
+
+**3. A registry test that exists because of an invisible failure mode.** Stage
+timings are hand-written numbers. A stage whose `at` exceeds the scene `duration`
+is simply never reached — the student never sees that step and **nothing errors**.
+`registry.test.ts` asserts stages start at 0, increase strictly, stay inside
+`duration`, and leave the last stage ≥ 1.2s to be read. It also asserts every
+practical ends with a stated conclusion, since an experiment animation that never
+says what was concluded is decoration.
+
+### Open item
+
+Ten of sixteen animations are scripted but not built (Part C of
+[09-animation-script.md](09-animation-script.md)), including the positive-ray
+comparison that the cathode ray tube's final stage points at. Scripts are written
+so implementation does not require re-deriving the teaching intent.
+
+---
+
+## Session 3 — 2026-09-13 · The remaining ten animations
+
+### Prompt used
+
+> "E:\PROJECTS\EduVault\EduVault\docs\09-animation-script.md using this md file
+> design animation and show them in app"
+
+i.e. implement Part C of the animation script — the ten animations that had been
+scripted but not built — and wire them into the reader.
+
+### What was built
+
+All ten, taking the catalogue from 6 to **16**:
+
+| § | Animation | Kind |
+|---|---|---|
+| 1.1 | පරමාණුවේ පරිමාණය (atom scale zoom) | concept |
+| 1.1.3 | ධන කිරණවල ගුණ (positive rays) | **practical** |
+| 1.2 | EM වර්ණාවලිය | concept |
+| 1.2 | ද බ්‍රොග්ලි සම්බන්ධය | concept |
+| 1.3.2 | කාක්ෂිකවල හැඩ (orbital shapes) | concept |
+| 1.3.3 | ක්වොන්ටම් අංක ගස් සටහන | concept |
+| 1.3 | අනුක්‍රමික අයනීකරණ ශක්ති | concept |
+| 1.4 | ඉලෙක්ට්‍රෝන විනයාස පිරවීම | concept |
+| 1.5 | ආවර්තිතා වගුව ගොඩනැගීම | concept |
+| 1.6 | ආවර්තීය නැඹුරුතා | concept |
+
+Plus `features/animation/periodicTable.ts` — shared element data (positions,
+radii, ionisation energies, electronegativities, electron affinities, Aufbau
+anomalies) used by the two table scenes, so an element occupies the same cell in
+both. Lessons 1.4, 1.5 and 1.6 gained a සජීවීකරණ tab for the first time.
+
+**Verification:** `tsc --noEmit` → 0 errors · `jest` → 131 passed (23 new) ·
+`expo export --platform android` → bundles clean (7.49 MB, +110 KB).
+
+### Design decisions worth defending
+
+**Data over drawing, wherever a quantity is shown.** Positive-ray deflection is
+log-scaled from real e/m values; the de Broglie wavelengths are drawn at one
+shared metres-per-pixel scale; periodic trends use real radii and ionisation
+energies. Nothing is eyeballed to look right, so the physics survives a viva
+question about it.
+
+**Hund's rule is implemented, not tabulated.** `occupancyOf(electrons, boxes)`
+fills singly before pairing, so the boxes are populated the way a student derives
+them rather than from a per-element lookup. Same reasoning as the quantum tree,
+which generates its branches from `l = 0…n−1` and `mₗ = −l…+l`.
+
+**Four trends on one table, swapped in place.** The table never moves between
+stages of the periodic-trends scene, so the student sees radius shrinking toward
+the top right and then ionisation energy growing toward the same corner. Four
+separate diagrams cannot force that comparison — which is the entire point, since
+all four trends come from one cause.
+
+**Empty cells stay empty.** Noble gases have no electronegativity and group 2 no
+useful electron affinity. Those cells are left blank rather than filled with a
+plausible-looking value; the gaps are real chemistry and are examinable.
+
+**Teaching by rejection, twice.** The Aufbau scene shows 2p² crammed into one box
+and strikes it through in red before showing the correct arrangement, mirroring
+the failed step already used in the quantisation scene. A rule shown being broken
+sticks better than a correct example.
+
+### Failures encountered
+
+**1. A test caught a real chemistry special case — and the test was wrong.**
+
+```
+● element table › assigns blocks to the right groups
+  Expected: <= 2
+  Received:    18
+```
+
+The new `periodicTable.test.ts` asserted that every s-block element sits in group
+1 or 2. Helium is 1s² — genuinely s-block — but is drawn in group 18 with the
+other noble gases. The data was right; the assertion was too broad.
+
+What makes this worth recording: **the very next test in the same file already
+asserted helium's behaviour as correct.** Two assertions about the same fact,
+written minutes apart, contradicted each other. Fixed by exempting He from the
+general rule and pointing the comment at the specific test that covers it.
+
+**2. The reason these tests exist at all.** A mistyped radius or ionisation energy
+does not crash anything — it silently draws the wrong science, and a student
+would see chlorine drawn larger than sodium with no way to know the app was wrong
+rather than their understanding. So the tests encode the *trends* (radius
+decreases across a period, ionisation energy runs opposite to radius,
+electronegativity peaks at fluorine) rather than spot-checking values. That is the
+only form of the test that would have caught a plausible-looking typo.
+
+**3. Shell backtick corruption, again — avoided this time.** Session 2 lost a
+code comment to backticks inside a `node -e "…"` string. This session's content
+edit needed regexes and a nested data structure, so it went into a scratchpad
+`.js` file run with `node path/to/script.js` instead. No quoting layer, no
+corruption. Recording it because the earlier lesson only paid off by changing the
+approach rather than by being more careful with the same one.
+
+### Result
+
+Every lesson from 1.1 to 1.6 now has a සජීවීකරණ tab. Roughly six minutes of
+animation covering all four syllabus practicals and twelve concept
+visualisations, all offline, all driven by the same pure-function-of-time engine.

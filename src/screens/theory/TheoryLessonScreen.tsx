@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
+import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { useColorScheme } from 'nativewind';
 import {
   Badge,
   Card,
@@ -11,6 +12,8 @@ import {
   LoadingSpinner,
   ScreenContainer,
 } from '@/components';
+import { AnimationPlayer } from '@/components/animations/AnimationPlayer';
+import { scenesForLesson } from '@/features/animation/registry';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { getQuestionsByIds } from '@/db/repositories/contentRepo';
 import { fetchChapter, fetchLesson, fetchLessons } from '@/services/theory';
@@ -24,6 +27,7 @@ type ReaderTab =
   | 'Notes'
   | 'Important Points'
   | 'Formula Sheet'
+  | 'Animations'
   | 'Visuals'
   | 'Memory Tricks'
   | 'Exam Tips'
@@ -38,6 +42,10 @@ type ReaderTab =
 function tabsForLesson(lesson: Lesson | null): ReaderTab[] {
   const tabs: ReaderTab[] = ['Notes', 'Important Points', 'Formula Sheet'];
   if (!lesson) return [...tabs, 'Summary', 'Related Questions'];
+
+  // Resolved through the registry, not from the id list: a lesson may name an
+  // animation that has not been built yet, and an empty tab is worse than none.
+  if (scenesForLesson(lesson.animationIds).length > 0) tabs.push('Animations');
 
   const visualCount = (lesson.imageSuggestions?.length ?? 0) + (lesson.videoSuggestions?.length ?? 0);
   if (visualCount > 0) tabs.push('Visuals');
@@ -72,9 +80,19 @@ export function TheoryLessonScreen() {
   const allLessons = lessons ?? [];
   const lesson = fetchedLesson ?? null;
 
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
   const [activeTab, setActiveTab] = useState<ReaderTab>('Notes');
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
-  const [playing, setPlaying] = useState(false);
+
+  // expo-audio replaced expo-av in SDK 57. `useAudioPlayer` is used rather than
+  // `createAudioPlayer` because it releases the player on unmount by itself —
+  // the manual API's cleanup method is documented inconsistently (`release()`
+  // in the guide, `remove()` in the reference), and this avoids the question.
+  // A null source is valid, which matters because the lesson loads async.
+  const player = useAudioPlayer(fetchedLesson?.audioUrl ?? null);
+  const playerStatus = useAudioPlayerStatus(player);
+  const playing = playerStatus?.playing ?? false;
   // Practice answers stay hidden until the student asks for them.
   const [revealedAnswers, setRevealedAnswers] = useState<Record<number, boolean>>({});
 
@@ -84,17 +102,19 @@ export function TheoryLessonScreen() {
 
   const readerTabs = useMemo(() => tabsForLesson(lesson), [lesson]);
 
+  // Resolved once per lesson rather than inside the render branch, so switching
+  // tabs does not rebuild the scene list and remount every player.
+  const lessonAnimations = useMemo(
+    () => scenesForLesson(lesson?.animationIds),
+    [lesson?.animationIds],
+  );
+
   const { data: related } = useAsyncData(
     () => getQuestionsByIds(fetchedLesson?.relatedQuestionIds ?? []),
     [fetchedLesson?.id],
   );
   const relatedQuestions = related ?? [];
 
-  useEffect(() => {
-    return () => {
-      sound?.unloadAsync();
-    };
-  }, [sound]);
 
   if (chapterLoading || lessonLoading) {
     return (
@@ -112,22 +132,12 @@ export function TheoryLessonScreen() {
     );
   }
 
-  const toggleAudio = async () => {
+  const toggleAudio = () => {
     if (!lesson.audioUrl) return;
-    if (sound && playing) {
-      await sound.pauseAsync();
-      setPlaying(false);
-      return;
-    }
-    if (sound) {
-      await sound.playAsync();
-      setPlaying(true);
-      return;
-    }
-    const { sound: newSound } = await Audio.Sound.createAsync({ uri: lesson.audioUrl });
-    setSound(newSound);
-    setPlaying(true);
-    await newSound.playAsync();
+    // The player already holds the source, so this is only play/pause — the
+    // load-on-first-press branch the expo-av version needed is gone.
+    if (playing) player.pause();
+    else player.play();
   };
 
 
@@ -270,6 +280,30 @@ export function TheoryLessonScreen() {
                 </View>
               ))
             ))}
+
+          {activeTab === 'Animations' && (
+            <View>
+              <Text className="mb-1 text-sm font-bold text-gray-900 dark:text-white">
+                සජීවීකරණ
+              </Text>
+              <Text className="mb-4 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                ධාවනය කර බලන්න. ⏭ බොත්තමෙන් පියවරෙන් පියවර යන්න පුළුවන් — එක් එක්
+                පියවරේ නිගමනය පහළින් පෙන්වයි.
+              </Text>
+
+              {/* `active` is bound to the tab, so the clock stops the moment
+                  the student switches away rather than animating a hidden
+                  canvas — the reason the player takes the prop at all. */}
+              {lessonAnimations.map((animation) => (
+                <AnimationPlayer
+                  key={animation.id}
+                  scene={animation}
+                  isDark={isDark}
+                  active={activeTab === 'Animations'}
+                />
+              ))}
+            </View>
+          )}
 
           {activeTab === 'Visuals' && (
             <View>

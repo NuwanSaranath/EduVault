@@ -1,10 +1,10 @@
 import '../global.css';
 import { useEffect } from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
-import { Stack } from 'expo-router';
+import { Stack, type ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from 'nativewind';
 import { useAuthStore } from '@/store/authStore';
@@ -12,6 +12,62 @@ import { useAppBootstrap } from '@/hooks/useAppBootstrap';
 import { palette } from '@/constants/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+/**
+ * Shows the actual error instead of Expo Go's generic "Something went wrong".
+ *
+ * Expo Router looks for a named `ErrorBoundary` export on a route file and
+ * wraps that segment's subtree in it. Exporting it from the root layout means
+ * any render error anywhere in the app surfaces here with its message and
+ * stack, on the device — which is the difference between a five-minute fix and
+ * guessing from a screen that says nothing.
+ *
+ * It cannot catch everything: an error thrown while a module is still being
+ * imported happens before React renders, so those still only appear in the
+ * Metro terminal.
+ */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return (
+    <SafeAreaProvider>
+      <View style={{ flex: 1, backgroundColor: '#1A1033', padding: 20 }}>
+        <Text style={{ color: '#FCA5A5', fontSize: 13, fontWeight: '700', marginTop: 40 }}>
+          EduVault crashed
+        </Text>
+        <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700', marginTop: 8 }}>
+          {error?.name ?? 'Error'}: {error?.message ?? 'Unknown error'}
+        </Text>
+
+        <ScrollView
+          style={{
+            flex: 1,
+            marginTop: 16,
+            backgroundColor: 'rgba(0,0,0,0.35)',
+            borderRadius: 10,
+            padding: 12,
+          }}
+        >
+          <Text selectable style={{ color: '#D1D5DB', fontSize: 11, lineHeight: 16 }}>
+            {error?.stack ?? 'No stack trace available.'}
+          </Text>
+        </ScrollView>
+
+        <Pressable
+          onPress={() => void retry()}
+          style={{
+            marginTop: 16,
+            marginBottom: 20,
+            backgroundColor: palette.primary[600],
+            borderRadius: 12,
+            paddingVertical: 14,
+            alignItems: 'center',
+          }}
+        >
+          <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Try again</Text>
+        </Pressable>
+      </View>
+    </SafeAreaProvider>
+  );
+}
 
 export default function RootLayout() {
   const hasHydrated = useAuthStore((s) => s.hasHydrated);

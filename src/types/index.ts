@@ -83,6 +83,13 @@ export interface Lesson {
   commonMistakes?: string[];
   examTips?: string[];
   practiceItems?: PracticeItem[];
+  /**
+   * Ids of animations to show for this lesson, resolved through
+   * features/animation/registry. Referenced by id rather than imported so
+   * lesson content stays data — a lesson pulled from Firestore can name an
+   * animation exactly as a bundled one does. Unknown ids are skipped.
+   */
+  animationIds?: string[];
 }
 
 export interface Chapter {

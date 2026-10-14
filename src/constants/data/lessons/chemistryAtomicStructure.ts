@@ -32,6 +32,14 @@ export const atomicStructureLessons: Lesson[] = [
     id: 'chemistry-ch1-l1',
     chapterId: 'chemistry-ch1',
     sectionNumber: '1.1',
+    animationIds: [
+      'anim-atom-scale',
+      'anim-cathode-ray-tube',
+      'anim-millikan-oil-drop',
+      'anim-positive-rays',
+      'anim-rutherford-gold-foil',
+      'anim-isotopes',
+    ],
     title: 'පදාර්ථය පිළිබඳ පරමාණුකවාදය (Atomic Theory of Matter)',
     subtopics: [
       '1.1.1 කැතෝඩ කිරණවල ගුණ (පරීක්ෂණාත්මක නිරීක්ෂණ)',
@@ -211,6 +219,11 @@ export const atomicStructureLessons: Lesson[] = [
     id: 'chemistry-ch1-l2',
     chapterId: 'chemistry-ch1',
     sectionNumber: '1.2',
+    animationIds: [
+      'anim-energy-quantisation',
+      'anim-em-spectrum',
+      'anim-de-broglie',
+    ],
     title: 'විද්‍යුත්-චුම්බක විකිරණ හා පදාර්ථයේ තරංගාකාර ගුණ (EM Radiation & Wave Nature of Matter)',
     subtopics: ['1.2.1 ශක්ති ක්වොන්ටම්කරණය', 'විද්‍යුත්-චුම්බක වර්ණාවලිය', 'ෆෝටෝන හා අංශු-තරංග ද්විත්වය', 'ද බ්‍රොග්ලි සම්බන්ධය'],
     intro:
@@ -361,6 +374,12 @@ export const atomicStructureLessons: Lesson[] = [
     id: 'chemistry-ch1-l3',
     chapterId: 'chemistry-ch1',
     sectionNumber: '1.3',
+    animationIds: [
+      'anim-hydrogen-spectrum',
+      'anim-orbital-shapes',
+      'anim-quantum-tree',
+      'anim-ionisation-jump',
+    ],
     title: 'පරමාණුවල ඉලෙක්ට්‍රෝනික ශක්ති මට්ටම් (Electronic Energy Levels of Atoms)',
     subtopics: [
       '1.3.1 හයිඩ්‍රජන් වර්ණාවලිය',
@@ -540,6 +559,9 @@ export const atomicStructureLessons: Lesson[] = [
     id: 'chemistry-ch1-l4',
     chapterId: 'chemistry-ch1',
     sectionNumber: '1.4',
+    animationIds: [
+      'anim-aufbau-filling',
+    ],
     title: 'ඉලෙක්ට්‍රෝන විනයාස (Electron Configuration)',
     subtopics: [
       '1.4.1 අවුෆ්බාවු මූලධර්මය',
@@ -711,6 +733,9 @@ export const atomicStructureLessons: Lesson[] = [
     id: 'chemistry-ch1-l5',
     chapterId: 'chemistry-ch1',
     sectionNumber: '1.5',
+    animationIds: [
+      'anim-periodic-build',
+    ],
     title: 'ආවර්තිතා වගුව ගොඩනැගීම (Building the Periodic Table)',
     subtopics: [
       'ආවර්තිතා වගුවේ දීර්ඝ ආකාරය',
@@ -889,6 +914,9 @@ export const atomicStructureLessons: Lesson[] = [
     id: 'chemistry-ch1-l6',
     chapterId: 'chemistry-ch1',
     sectionNumber: '1.6',
+    animationIds: [
+      'anim-periodic-trends',
+    ],
     title: 's හා p ගොනුවල මූලද්‍රව්‍ය පෙන්වන ආවර්තීය නැඹුරුතා (Periodic Trends)',
     subtopics: [
       '1.6.1 පරමාණුවල සහ අයනවල තරම (වැන් ඩ\'වාල්, සහසංයුජ, ලෝහක අරය)',

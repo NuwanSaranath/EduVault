@@ -38,7 +38,7 @@ offline. Sign-in is the only feature that needs a backend.
 ```bash
 npm start            # dev server
 npm run android      # / ios / web
-npm test             # jest — 60 tests
+npm test             # jest — 131 tests
 npx tsc --noEmit     # typecheck
 ```
 
@@ -60,13 +60,14 @@ Full detail: [docs/03-architecture.md](docs/03-architecture.md).
 app/                    expo-router routes (thin)
 src/
 ├─ screens/             screen composition
-├─ components/          shared UI + 4 custom components
+├─ components/          shared UI, custom components, animations/
 ├─ store/               Zustand (optimistic UI state)
 ├─ services/            use-case API the screens call
 ├─ features/            pure domain logic — no I/O, fully unit-tested
 │   ├─ quiz/adaptive.ts     selection algorithm
 │   ├─ flashcards/build.ts  deck construction
 │   ├─ progress/snapshot.ts progress shape + identity
+│   ├─ animation/          timing, registry, periodic data for lesson animations
 │   └─ hardware/            capture pipeline
 ├─ db/                  SQLite: schema, repositories, cache policy
 ├─ sync/                engine, push, pull, merge, policy
@@ -86,6 +87,7 @@ docs/                   assignment documentation
 | [06-hardware-integration.md](docs/06-hardware-integration.md) | Camera integration and why it was chosen |
 | [07-ui-ux-flow.md](docs/07-ui-ux-flow.md) | Navigation, flows, rationale **(needs screenshots)** |
 | [08-custom-components.md](docs/08-custom-components.md) | Props and events for each custom component |
+| [09-animation-script.md](docs/09-animation-script.md) | Lesson animation system + scripts for all 16 animations |
 | [decision-records/](docs/decision-records/) | The four decisions with the most consequence |
 | [ai-log.md](docs/ai-log.md) | AI usage, failures, and how they were resolved |
 
@@ -99,7 +101,7 @@ docs/                   assignment documentation
 | Conflict resolution | Per-entity: append-only / monotonic / set union / LWW — commutativity and idempotency asserted in tests |
 | Constrained design | Adaptive selection algorithm; 40 MB LRU cache budget; network-aware sync policy; capture downscaling; constraint-solved responsive grid |
 | Native hardware | Camera "Snap & Ask" wired through the offline queue |
-| Custom components | `ExamCountdownRing` (SVG), `FlashcardDeck` (gesture), `AnswerSheetGrid` (OMR), `QuestionScanner` (camera) |
+| Custom components | `ExamCountdownRing` (SVG), `FlashcardDeck` (gesture), `AnswerSheetGrid` (OMR), `QuestionScanner` (camera), `AnimationPlayer` + 16 SVG lesson scenes |
 
 ## Before submitting
 

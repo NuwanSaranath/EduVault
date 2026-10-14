@@ -23,6 +23,10 @@ export function ForgotPasswordScreen() {
     try {
       await requestPasswordReset(email);
       setSent(true);
+    } catch (err) {
+      // Same reason as the login and register screens: an unhandled rejection
+      // here left the spinner stopping with nothing explaining why.
+      setError(err instanceof Error ? err.message : 'Could not send the reset email.');
     } finally {
       setLoading(false);
     }
@@ -61,7 +65,7 @@ export function ForgotPasswordScreen() {
         error={error}
       />
 
-      <Button label="Send Reset Link" onPress={onSubmit} loading={loading} />
+      <Button label="Send Reset Link" onPress={() => void onSubmit()} loading={loading} />
 
       <Link href="/(auth)/login" asChild>
         <Text className="mt-6 self-center text-sm font-semibold text-primary-600 dark:text-primary-300">

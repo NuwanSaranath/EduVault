@@ -39,3 +39,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Local Firebase config. Not secret (see .env.example), but it is machine-local
+# and should not travel with the repo; .env.example documents the shape.
+.env
