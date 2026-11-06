@@ -31,7 +31,7 @@ export default function TabsLayout() {
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
         tabBarIcon: ({ focused, color, size }) => {
           const icons = tabIcons[route.name] ?? tabIcons.index;
-          return <Ionicons name={focused ? icons.active : icons.inactive} size={size} color={color} />;
+          return <Ionicons name={focused ? icons.active : icons.inactive} size={size} color={color as string} />;
         },
       })}
     >

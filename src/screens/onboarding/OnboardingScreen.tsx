@@ -5,6 +5,7 @@ import {
   NativeSyntheticEvent,
   Pressable,
   ScrollView,
+  type ScrollViewInstance,
   Text,
   View,
 } from 'react-native';
@@ -56,7 +57,7 @@ const pages: Page[] = [
 
 export function OnboardingScreen() {
   const [pageIndex, setPageIndex] = useState(0);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const insets = useSafeAreaInsets();
   const completeOnboarding = useAuthStore((s) => s.completeOnboarding);
 

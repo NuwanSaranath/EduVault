@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, type ScrollViewInstance, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -57,7 +57,7 @@ export function PastPaperExamScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [startedAt] = useState(() => Date.now());
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const questionOffsets = useRef<Record<number, number>>({});
 
   const setLastResult = useExamStore((s) => s.setLastResult);
