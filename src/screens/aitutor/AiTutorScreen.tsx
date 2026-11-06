@@ -30,6 +30,7 @@ interface ScanMessage extends AiTutorMessage {
   imageUri?: string;
 }
 
+/** AI Tutor chat: typed questions answered offline, plus the Snap & Ask camera. */
 export function AiTutorScreen() {
   const [messages, setMessages] = useState<ScanMessage[]>([]);
   const [input, setInput] = useState('');
@@ -50,6 +51,7 @@ export function AiTutorScreen() {
     setRelatedQuestions((prev) => ({ ...prev, [message.id]: questions }));
   }, []);
 
+  /** Adds the student's message to the chat and appends the tutor's reply. */
   const sendMessage = async (text: string) => {
     if (!text.trim() || sending) return;
 

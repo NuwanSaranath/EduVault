@@ -7,6 +7,7 @@ interface AvatarProps {
   size?: number;
 }
 
+// round profile pic, shows initials if no photo
 export function Avatar({ name, uri, size = 48 }: AvatarProps) {
   const style = { width: size, height: size, borderRadius: size / 2 };
 

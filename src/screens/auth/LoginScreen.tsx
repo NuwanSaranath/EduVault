@@ -18,6 +18,7 @@ import { login } from '@/services/auth';
 import { useAuthStore } from '@/store/authStore';
 import { isValidEmail, isValidPassword } from '@/utils/validators';
 
+/** Sign-in form (email + password). */
 export function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,6 +28,7 @@ export function LoginScreen() {
   const insets = useSafeAreaInsets();
   const setUser = useAuthStore((s) => s.setUser);
 
+  /** Validates the form, signs in and opens the tabs. */
   const onSubmit = async () => {
     const nextErrors: typeof errors = {};
     if (!isValidEmail(email)) nextErrors.email = 'Enter a valid email address';

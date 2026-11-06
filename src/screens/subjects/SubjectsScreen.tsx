@@ -5,12 +5,15 @@ import { Card, LoadingSpinner, ProgressBar, ScreenContainer, SectionHeader } fro
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { useStreamSubjects } from '@/hooks/useStreamSubjects';
 import { fetchChapters } from '@/services/theory';
+import { applyChapterCompletion, useCompletedChapterIds } from '@/features/progress/completion';
 import { useAuthStore } from '@/store/authStore';
 import { formatPercent } from '@/utils/format';
 
+/** Subjects tab: the student's stream subjects with progress. */
 export function SubjectsScreen() {
   const user = useAuthStore((s) => s.user);
   const { subjects, loading: subjectsLoading } = useStreamSubjects();
+  const completedIds = useCompletedChapterIds();
 
   /**
    * Chapter rows for every subject, fetched in one pass.
@@ -40,7 +43,9 @@ export function SubjectsScreen() {
         <SectionHeader title={`${subjects.length} Subjects`} />
 
         {subjects.map((subject) => {
-          const chapters = chapterRows?.[subject.id] ?? [];
+          const chapters = (chapterRows?.[subject.id] ?? []).map((c) =>
+            applyChapterCompletion(c, completedIds),
+          );
           const totalLessons = chapters.reduce((sum, c) => sum + c.totalLessons, 0);
           const completedLessons = chapters.reduce((sum, c) => sum + c.completedLessons, 0);
           const percent = totalLessons === 0 ? 0 : (completedLessons / totalLessons) * 100;

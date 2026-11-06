@@ -4,53 +4,38 @@ import Svg, { Circle, G, Line } from 'react-native-svg';
 import { palette } from '@/constants/theme';
 
 export interface ExamCountdownRingProps {
-  /** Days left until the A/L exam. Clamped at 0; negative values read as 0. */
+  // days left until the exam, below 0 shows as 0
   daysRemaining: number;
-  /** Full sweep of the ring — the length of the study plan in days. */
+  // length of the study plan in days (full ring)
   totalDays: number;
-  /** Outer diameter in px. @default 168 */
+  // size in px, default 168
   size?: number;
-  /** Ring thickness in px. @default 14 */
+  // ring thickness, default 14
   strokeWidth?: number;
-  /** Number of tick segments around the ring. @default 36 */
+  // number of segments, default 36
   segments?: number;
-  /** Gap between segments, in degrees. @default 2 */
+  // gap between segments in degrees, default 2
   segmentGap?: number;
-  /** Days remaining at which the ring switches to its urgent palette. @default 30 */
+  // days left when it turns red/amber, default 30
   urgentThreshold?: number;
-  /** Caption under the day count. @default 'days to A/L' */
+  // text under the number, default 'days to A/L'
   label?: string;
-  /** Fired when the ring is tapped. Omit to render it non-interactive. */
+  // leave out if it shouldn't be tappable
   onPress?: () => void;
-  /**
-   * Fired once, on the render where `daysRemaining` first falls at or below
-   * `urgentThreshold`. Will not fire again unless the count rises back above it.
-   */
+  // called once when daysRemaining first goes to urgentThreshold or below.
+  // won't fire again unless it goes back above
   onUrgent?: (daysRemaining: number) => void;
 }
 
-/**
- * Custom component: a segmented countdown ring drawn from scratch in SVG.
- *
- * Built rather than borrowed because no chart library draws this — it is not a
- * progress bar bent into a circle. Each of the 36 segments is an independently
- * stroked arc, so the ring reads as *discrete days ticking away* rather than a
- * continuously filling bar. On a study app the difference matters: a student
- * glancing at it should feel a countdown, not a completion metric.
- *
- * How it works
- *  1. `segments` arcs are laid out around a circle, each spanning
- *     `360/segments - segmentGap` degrees.
- *  2. Each arc is a `<Circle>` whose `strokeDasharray` exposes exactly one
- *     segment's worth of circumference and hides the rest — the standard trick
- *     for drawing an arc without building a path string.
- *  3. `rotation` places it, so no trigonometry is needed per segment.
- *  4. Colour is interpolated per segment from the remaining ratio, giving the
- *     ring a gradient that tightens toward red as the exam approaches.
- *
- * Deliberately not animated. It changes once a day; a spring on mount would be
- * decoration, and it would replay on every navigation back to the home screen.
- */
+// Countdown ring drawn with svg.
+// Made from 36 separate segments so it looks like days ticking away, not a
+// progress bar filling up.
+//  1. each segment is 360/segments - segmentGap degrees
+//  2. each one is a <Circle> with strokeDasharray showing only that segment's
+//     part of the circle (easy way to draw an arc without a path)
+//  3. rotation puts it in place, no trig needed
+//  4. colour changes per segment, goes towards red as the exam gets close
+// Not animated, it only changes once a day.
 export function ExamCountdownRing({
   daysRemaining,
   totalDays,
@@ -68,8 +53,7 @@ export function ExamCountdownRing({
   const remainingRatio = Math.min(1, safeDays / safeTotal);
   const isUrgent = safeDays <= urgentThreshold;
 
-  // Edge-triggered so the callback fires on the transition, not on every render
-  // while the app sits in an urgent state.
+  // only fire when it changes to urgent, not every render
   const wasUrgent = useRef(isUrgent);
   useEffect(() => {
     if (isUrgent && !wasUrgent.current) {
@@ -84,7 +68,7 @@ export function ExamCountdownRing({
   const arcDegrees = Math.max(0.5, degreesPerSegment - segmentGap);
   const arcLength = (arcDegrees / 360) * circumference;
 
-  /** How many segments are still "left" — always at least one while days remain. */
+  // segments still left, at least 1 if there are days left
   const litSegments =
     safeDays === 0 ? 0 : Math.max(1, Math.round(remainingRatio * segments));
 
@@ -92,13 +76,12 @@ export function ExamCountdownRing({
     () =>
       Array.from({ length: segments }, (_, index) => {
         const lit = index < litSegments;
-        // Position within the lit range drives the colour, so the gradient
-        // always spans the full visible arc regardless of how much is left.
+        // colour from position in the lit part so the gradient always covers it all
         const position = litSegments <= 1 ? 0 : index / (litSegments - 1);
         return {
           index,
           lit,
-          // -90 starts the ring at 12 o'clock instead of 3 o'clock.
+          // -90 so it starts at the top
           rotation: -90 + index * degreesPerSegment,
           color: lit ? segmentColor(position, isUrgent) : palette.gray[200],
         };
@@ -122,9 +105,9 @@ export function ExamCountdownRing({
               strokeWidth={strokeWidth}
               strokeLinecap="butt"
               fill="none"
-              // Show exactly one segment, hide the remaining circumference.
+              // show one segment, hide the rest of the circle
               strokeDasharray={`${arcLength} ${circumference - arcLength}`}
-              // Rotate about the centre to place this segment.
+              // rotate around the centre
               originX={center}
               originY={center}
               rotation={arc.rotation}
@@ -132,7 +115,7 @@ export function ExamCountdownRing({
             />
           ))}
 
-          {/* Inner hairline: grounds the numerals so they do not float. */}
+          {/* thin inner circle behind the numbers */}
           <Circle
             cx={center}
             cy={center}
@@ -143,7 +126,7 @@ export function ExamCountdownRing({
             opacity={0.6}
           />
 
-          {/* 12 o'clock notch: the fixed exam date the ring counts down to. */}
+          {/* notch at the top = exam day */}
           <Line
             x1={center}
             y1={center - radius - strokeWidth / 2}
@@ -155,8 +138,7 @@ export function ExamCountdownRing({
         </G>
       </Svg>
 
-      {/* Numerals are React Native Text, not SVG Text — they inherit the app's
-          font scaling and dark-mode colours for free, which SVG text does not. */}
+      {/* normal Text not svg text, so font scaling and dark mode just work */}
       <View className="absolute items-center justify-center">
         <Text
           className="font-bold text-gray-900 dark:text-white"
@@ -189,14 +171,8 @@ export function ExamCountdownRing({
   );
 }
 
-/**
- * Interpolates a segment's colour.
- *
- * Two separate ramps rather than one long gradient: in the calm state the ring
- * stays inside the brand indigo/violet range, and once urgent it shifts wholesale
- * to amber→red. A single ramp through all four colours would spend most of the
- * year looking vaguely alarming.
- */
+// segment colour. purple range normally, amber to red when urgent. one
+// gradient through all 4 colours would look scary most of the year
 function segmentColor(position: number, urgent: boolean): string {
   const ramp = urgent
     ? [palette.danger, '#F97316', palette.warning]
@@ -208,7 +184,7 @@ function segmentColor(position: number, urgent: boolean): string {
   return mixHex(ramp[lower], ramp[upper], scaled - lower);
 }
 
-/** Linear RGB blend of two #rrggbb strings. */
+// mix two #rrggbb colours
 function mixHex(from: string, to: string, t: number): string {
   const a = hexToRgb(from);
   const b = hexToRgb(to);

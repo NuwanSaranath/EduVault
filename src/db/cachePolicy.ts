@@ -1,23 +1,14 @@
 import { getDb } from './index';
 
-/**
- * Constrained-design policy #2: a hard ceiling on cached lesson content with
- * least-recently-used eviction.
- *
- * The target device is a mid-range Android phone that a student also uses for
- * everything else, so the app cannot assume it may grow without bound. Rather
- * than trusting the OS to reclaim space (which on Android means the app data is
- * cleared wholesale, losing the outbox with it), EduVault enforces its own
- * budget and chooses what to drop.
- *
- * Two rules make the eviction safe:
- *   1. Bookmarked lessons are pinned — a deliberate save outranks the budget.
- *   2. Only `lessons` is evictable. Questions and papers are small, and user
- *      data is never evictable because it may not have synced yet.
- */
+// Lesson cache limit, deletes least recently used lessons when over.
+// Students use cheap android phones for everything else too, and if android
+// clears our data itself we lose the outbox. So we keep our own limit.
+// - bookmarked lessons are never deleted
+// - only lessons get deleted. questions/papers are small and user data might
+//   not be synced yet
 export const CACHE_LIMIT_BYTES = 40 * 1024 * 1024; // 40 MB
 
-/** Evict in batches so one pass cannot stall the JS thread on a huge cache. */
+// delete in batches so it doesn't freeze the js thread
 const EVICTION_BATCH = 25;
 
 export interface CacheUsage {
@@ -27,6 +18,7 @@ export interface CacheUsage {
   pinnedCount: number;
 }
 
+// numbers for the storage panel in settings
 export async function getCacheUsage(): Promise<CacheUsage> {
   const db = await getDb();
   const totals = await db.getFirstAsync<{ total: number; n: number }>(
@@ -41,15 +33,9 @@ export async function getCacheUsage(): Promise<CacheUsage> {
   };
 }
 
-/**
- * Drops cold lessons until usage is back under the ceiling.
- *
- * Ordering detail: `last_read_at IS NULL DESC` puts never-read lessons first —
- * content that was pulled in a sync but never opened is the cheapest thing to
- * lose, since re-fetching it costs the user nothing they noticed having.
- *
- * @returns ids that were evicted, for logging and for the Settings screen.
- */
+// delete old lessons until we're under the limit. never opened lessons go
+// first (last_read_at IS NULL DESC) since nobody will miss them.
+// returns the deleted ids
 export async function enforceCacheBudget(
   limitBytes: number = CACHE_LIMIT_BYTES,
 ): Promise<string[]> {
@@ -62,8 +48,8 @@ export async function enforceCacheBudget(
   let used = initial?.total ?? 0;
   if (used <= limitBytes) return evicted;
 
-  // Loop rather than one big DELETE: we must subtract each row's real byte
-  // count to know when to stop, and a single query cannot express that.
+  // loop instead of one DELETE, we need to subtract each row's size to know
+  // when to stop
   for (;;) {
     const victims = await db.getAllAsync<{ id: string; bytes: number }>(
       `SELECT id, bytes FROM lessons
@@ -87,7 +73,7 @@ export async function enforceCacheBudget(
   return evicted;
 }
 
-/** Settings action: clear all unpinned content, keeping user data intact. */
+// settings button: clear lessons that aren't bookmarked
 export async function clearUnpinnedCache(): Promise<number> {
   const db = await getDb();
   const result = await db.runAsync(

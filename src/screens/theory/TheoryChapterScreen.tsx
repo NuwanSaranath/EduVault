@@ -17,6 +17,7 @@ import { fetchChapter, fetchLessons } from '@/services/theory';
 import { fetchSubject } from '@/services/subjects';
 import { palette } from '@/constants/theme';
 import { useBookmarkStore } from '@/store/bookmarkStore';
+import { useCompletedChapterIds } from '@/features/progress/completion';
 
 /**
  * Lists the topics (lessons) inside a chapter. Tapping a topic opens it on its
@@ -44,6 +45,9 @@ export function TheoryChapterScreen() {
   const [downloadState, setDownloadState] = useState<'idle' | 'downloading' | 'done'>('idle');
 
   const isBookmarked = useBookmarkStore((s) => s.isBookmarked);
+  // Completion is tracked per chapter in the progress store; the seeded
+  // `lesson.completed` flag is demo data and does not reflect this student.
+  const chapterDone = useCompletedChapterIds().has(chapterId);
 
   const filteredLessons = useMemo(
     () => allLessons.filter((l) => l.title.toLowerCase().includes(query.trim().toLowerCase())),
@@ -66,6 +70,7 @@ export function TheoryChapterScreen() {
     );
   }
 
+  /** Downloads the chapter PDF for offline reading. */
   const downloadPdf = async () => {
     setDownloadState('downloading');
     try {
@@ -77,7 +82,7 @@ export function TheoryChapterScreen() {
     }
   };
 
-  const completedCount = allLessons.filter((l) => l.completed).length;
+  const completedCount = chapterDone ? allLessons.length : 0;
   const percent = allLessons.length === 0 ? 0 : (completedCount / allLessons.length) * 100;
 
   return (
@@ -150,10 +155,10 @@ export function TheoryChapterScreen() {
                 <View className="flex-row items-center">
                   <View
                     className={`mr-3 h-10 w-10 items-center justify-center rounded-full ${
-                      lesson.completed ? 'bg-green-100 dark:bg-green-900/40' : 'bg-primary-50 dark:bg-primary-900/40'
+                      chapterDone ? 'bg-green-100 dark:bg-green-900/40' : 'bg-primary-50 dark:bg-primary-900/40'
                     }`}
                   >
-                    {lesson.completed ? (
+                    {chapterDone ? (
                       <Ionicons name="checkmark" size={18} color={palette.success} />
                     ) : (
                       <Text className="text-xs font-bold text-gray-600 dark:text-gray-300">{topicNumber}</Text>

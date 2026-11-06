@@ -1,82 +1,53 @@
-/**
- * Pure timing helpers for lesson animations.
- *
- * The whole animation system rests on one rule: **a scene is a pure function of
- * elapsed time**. Nothing accumulates state between frames, no element "remembers"
- * where it was. Given `t`, a scene draws exactly one picture.
- *
- * That rule is what buys the features a teaching animation actually needs:
- *
- *   - **Scrubbing and stepping.** Jumping to t = 12.5s is just rendering at 12.5.
- *     A stateful animation would have to replay 12.5 seconds to get there.
- *   - **Caption sync.** The caption is derived from the same `t` as the drawing,
- *     so they cannot drift apart.
- *   - **Reduce-motion.** Render once at the final `t` and the student sees the
- *     complete diagram with no movement at all.
- *   - **Testability.** Every helper here is pure, so scene timing is verified
- *     without mounting a component or running a clock.
- */
+// Timing helpers for the lesson animations.
+// Main rule: a scene only depends on time t. nothing is remembered between
+// frames, give it t and it draws one picture. That gives us:
+//  - jump/step: going to 12.5s is just drawing at 12.5
+//  - captions use the same t so they always match the drawing
+//  - reduce motion: draw once at the end
+//  - easy to test, everything here is pure
 
-/** Clamps `value` into [min, max]. */
 export function clamp(value: number, min = 0, max = 1): number {
   return Math.min(max, Math.max(min, value));
 }
 
-/** Linear interpolation. `t` is not clamped — callers clamp when they need to. */
+// not clamped, clamp it yourself if needed
 export function lerp(from: number, to: number, t: number): number {
   return from + (to - from) * t;
 }
 
-/**
- * Normalised progress through the window [start, end], clamped to [0, 1].
- *
- * The workhorse of every scene: "how far through *this part* of the animation
- * are we", independent of the scene's total length. Before `start` it is 0,
- * after `end` it is 1, so an element can be positioned by a single expression
- * rather than a chain of if-statements.
- */
+// how far through [start, end] we are, 0 to 1. 0 before start, 1 after end.
+// used everywhere in the scenes
 export function segment(t: number, start: number, end: number): number {
   if (end <= start) return t >= end ? 1 : 0;
   return clamp((t - start) / (end - start));
 }
 
-/** Smooth acceleration and deceleration. Smoothstep: 3t² − 2t³. */
+// smoothstep 3t² - 2t³
 export function easeInOut(t: number): number {
   const x = clamp(t);
   return x * x * (3 - 2 * x);
 }
 
-/** Fast start, gentle settle — for things arriving at a destination. */
+// fast then slow, for things arriving
 export function easeOut(t: number): number {
   const x = clamp(t);
   return 1 - (1 - x) * (1 - x);
 }
 
-/** Gentle start, fast finish — for things being launched. */
+// slow then fast, for things being launched
 export function easeIn(t: number): number {
   const x = clamp(t);
   return x * x;
 }
 
-/**
- * Ramps to 1 then back to 0 across the window — for a highlight or flash that
- * must not leave residue once the moment has passed.
- */
+// goes 0 -> 1 -> 0 in the window, for a flash/highlight
 export function pulse(t: number, start: number, end: number): number {
   const p = segment(t, start, end);
   return Math.sin(p * Math.PI);
 }
 
-/**
- * Staggers a list so items enter one after another.
- *
- * @param index       item's position in the list
- * @param count       total items
- * @param t           elapsed seconds
- * @param start       when the first item begins
- * @param each        how long each item takes
- * @param overlap     0 = strictly sequential, 1 = all at once
- */
+// items come in one after another.
+// overlap: 0 = one at a time, 1 = all together
 export function stagger(
   index: number,
   count: number,
@@ -91,29 +62,22 @@ export function stagger(
   return segment(t, itemStart, itemStart + each);
 }
 
-// ── Stages ─────────────────────────────────────────────────────────────────
+// stages
 
 export interface Stage {
   id: string;
-  /** Seconds from scene start when this stage begins. */
+  // seconds from the start
   at: number;
   titleSi: string;
   titleEn: string;
-  /** Narration shown under the canvas while this stage is active. */
+  // caption while this stage is on
   captionSi: string;
-  /** The exam-relevant conclusion. Shown highlighted — this is the point. */
+  // the exam point, shown highlighted
   takeawaySi?: string;
 }
 
-/**
- * Index of the stage active at time `t`.
- *
- * Stages are defined by their start time only; a stage runs until the next one
- * begins. Expressing it that way means re-timing a scene is editing one number
- * rather than keeping adjacent start/end pairs in sync.
- *
- * Returns 0 for any `t` before the first stage, so a scene always has a caption.
- */
+// which stage is on at time t. stages only have a start time and last until
+// the next one, so changing timing is one number. returns 0 before the first
 export function stageIndexAt(stages: Stage[], t: number): number {
   if (stages.length === 0) return -1;
   let index = 0;
@@ -124,13 +88,13 @@ export function stageIndexAt(stages: Stage[], t: number): number {
   return index;
 }
 
-/** The stage active at time `t`, or null when there are none. */
+// null if there are no stages
 export function stageAt(stages: Stage[], t: number): Stage | null {
   const index = stageIndexAt(stages, t);
   return index < 0 ? null : stages[index];
 }
 
-/** Progress through the active stage, 0..1. The last stage runs to `duration`. */
+// 0..1 through the current stage, last one runs to duration
 export function stageProgress(stages: Stage[], t: number, duration: number): number {
   const index = stageIndexAt(stages, t);
   if (index < 0) return 0;
@@ -139,14 +103,9 @@ export function stageProgress(stages: Stage[], t: number, duration: number): num
   return segment(t, start, end);
 }
 
-/**
- * Start time of the previous stage boundary, for a "step back" control.
- *
- * Takes the *current* stage's start when the student is more than `graceSeconds`
- * into it — the same behaviour as a music player's previous-track button, where
- * pressing it once restarts the current track. Without the grace period,
- * stepping back mid-stage skips a stage the student was still watching.
- */
+// for the step back button. if we're more than graceSeconds into the stage
+// go to its start (like the previous track button on a music player),
+// otherwise go to the one before
 export function previousStageStart(stages: Stage[], t: number, graceSeconds = 0.6): number {
   const index = stageIndexAt(stages, t);
   if (index <= 0) return 0;
@@ -155,21 +114,21 @@ export function previousStageStart(stages: Stage[], t: number, graceSeconds = 0.
   return stages[index - 1].at;
 }
 
-/** Start time of the next stage, or `duration` when already in the last. */
+// or duration if already in the last one
 export function nextStageStart(stages: Stage[], t: number, duration: number): number {
   const index = stageIndexAt(stages, t);
   if (index < 0) return duration;
   return index + 1 < stages.length ? stages[index + 1].at : duration;
 }
 
-// ── Geometry ───────────────────────────────────────────────────────────────
+// geometry
 
-/** Degrees → radians. Scenes think in degrees; trigonometry needs radians. */
+// degrees to radians
 export function rad(degrees: number): number {
   return (degrees * Math.PI) / 180;
 }
 
-/** Point at `distance` from (x, y) along `angleDeg`, SVG-style (y grows down). */
+// point at distance from (x, y) at angleDeg. y goes down like in svg
 export function project(
   x: number,
   y: number,
@@ -180,14 +139,8 @@ export function project(
   return { x: x + Math.cos(a) * distance, y: y + Math.sin(a) * distance };
 }
 
-/**
- * Deterministic pseudo-random number in [0, 1) from an integer seed.
- *
- * Scenes must not call `Math.random()`: an animation that scatters particles
- * differently every frame would flicker, and one that differs between the
- * student's screen and the teacher's makes a lesson impossible to discuss.
- * Seeding by particle index makes every replay identical.
- */
+// random number 0-1 from a seed. scenes can't use Math.random or particles
+// would jump around every frame. same seed = same picture every time
 export function seeded(seed: number): number {
   const x = Math.sin(seed * 12.9898) * 43758.5453;
   return x - Math.floor(x);

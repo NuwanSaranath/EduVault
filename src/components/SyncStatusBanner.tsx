@@ -1,30 +1,33 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import Animated, { FadeInUp, FadeOutUp } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useSyncStore } from '@/store/syncStore';
 import { palette } from '@/constants/theme';
+import { formatTimeAgo } from '@/utils/format';
 
 export interface SyncStatusBannerProps {
-  /** Hide while a full-screen flow (exam, quiz session) is running. */
+  // hide during exam / quiz
   paused?: boolean;
 }
 
-/**
- * The visible proof that offline sync exists.
- *
- * Collapses to nothing when the device is online with an empty outbox, so it
- * costs no screen space in the happy path. Tapping it forces a drain, which
- * doubles as the manual escape hatch when a student knows they are back online
- * before the OS has noticed.
- */
+// offline / sync banner. hidden when online with nothing to sync.
+// tap it to sync now, handy if the phone hasn't noticed it's back online
 export function SyncStatusBanner({ paused = false }: SyncStatusBannerProps) {
-  const { phase, pendingCount, deadLetterCount, isOnline, planReason, bind, syncNow } =
+  const { phase, pendingCount, deadLetterCount, isOnline, planReason, lastSyncedAt, bind, syncNow } =
     useSyncStore();
 
   useEffect(() => {
     bind();
   }, [bind]);
+
+  // update every minute so the time ago text changes
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (isOnline) return;
+    const timer = setInterval(() => setTick((t) => t + 1), 60_000);
+    return () => clearInterval(timer);
+  }, [isOnline]);
 
   const hasQueue = pendingCount > 0;
   const hasFailures = deadLetterCount > 0;
@@ -55,7 +58,9 @@ export function SyncStatusBanner({ paused = false }: SyncStatusBannerProps) {
       <Pressable
         onPress={() => void syncNow()}
         accessibilityRole="button"
-        accessibilityLabel={label}
+        accessibilityLabel={
+          isOnline ? label : `${label}. Last sync ${formatTimeAgo(lastSyncedAt)}`
+        }
         accessibilityHint={planReason}
         className="active:opacity-80"
         style={{ backgroundColor: tone.bg }}
@@ -65,6 +70,11 @@ export function SyncStatusBanner({ paused = false }: SyncStatusBannerProps) {
           <Text className="flex-1 text-xs font-medium text-white" numberOfLines={1}>
             {label}
           </Text>
+          {!isOnline ? (
+            <Text className="text-xs text-white/80" numberOfLines={1}>
+              Last sync: {formatTimeAgo(lastSyncedAt)}
+            </Text>
+          ) : null}
         </View>
       </Pressable>
     </Animated.View>

@@ -32,10 +32,12 @@ const ELECTRON = {
 
 const PLANCK = 6.626e-34;
 
+/** de Broglie wavelength λ = h / (m·v) in metres. */
 function wavelengthOf(massKg: number, velocity: number): number {
   return PLANCK / (massKg * velocity);
 }
 
+/** Scene: compares de Broglie wavelengths of an electron and a ball. */
 export function DeBroglie({ t, width, height, isDark, reduceMotion }: SceneProps) {
   const c = sceneColors(isDark);
 

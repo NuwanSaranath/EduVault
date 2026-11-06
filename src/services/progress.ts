@@ -1,17 +1,11 @@
-import type { QuizAttempt, SubjectProgress } from '@/types';
+import type { Chapter, QuizAttempt, SubjectProgress } from '@/types';
 import { getChaptersBySubject, getAllQuestions } from '@/db/repositories/contentRepo';
 import { getAttempts, getRecentAttempts } from '@/db/repositories/attemptRepo';
 import { weakestTopics } from '@/features/quiz/adaptive';
 import { getDb } from '@/db';
 
-/**
- * Progress computation.
- *
- * Everything here is derived from data already on the device — attempts in
- * SQLite and chapter metadata from the content cache — so the Progress screen is
- * fully functional offline. Nothing is fetched; the only thing sync changes is
- * whether other devices' attempts have arrived yet.
- */
+// progress numbers, all worked out from data on the phone (attempts in
+// sqlite + chapters in the cache). so the progress screen works offline
 export function computeSubjectProgress(
   subjectId: string,
   quizAttempts: QuizAttempt[],
@@ -39,41 +33,25 @@ export function computeSubjectProgress(
   };
 }
 
-/** Lesson totals for one subject, read from the cached chapter rows. */
-export async function fetchSubjectChapterStats(
-  subjectId: string,
-): Promise<{ completedLessons: number; totalLessons: number }> {
-  const chapters = await getChaptersBySubject(subjectId);
-  return {
-    completedLessons: chapters.reduce((sum, c) => sum + c.completedLessons, 0),
-    totalLessons: chapters.reduce((sum, c) => sum + c.totalLessons, 0),
-  };
+// chapters for a subject. these don't have completion, combine with
+// chapterLessonTotals and the store's completed ids
+export async function fetchSubjectChapters(subjectId: string): Promise<Chapter[]> {
+  return getChaptersBySubject(subjectId);
 }
 
-export async function fetchOverallChapterStats(): Promise<{ completed: number; total: number }> {
+// all chapters, every subject
+export async function fetchAllChapters(): Promise<Chapter[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<{ payload: string }>('SELECT payload FROM chapters');
-  let completed = 0;
-  let total = 0;
-  for (const row of rows) {
-    const chapter = JSON.parse(row.payload) as { completedLessons: number; totalLessons: number };
-    completed += chapter.completedLessons;
-    total += chapter.totalLessons;
-  }
-  return { completed, total };
+  return rows.map((row) => JSON.parse(row.payload) as Chapter);
 }
 
 export async function fetchAttempts(subjectId?: string): Promise<QuizAttempt[]> {
   return getAttempts(subjectId);
 }
 
-/**
- * The chapters a student is weakest in, shared with the quiz selector.
- *
- * Deliberately the same `weakestTopics` the adaptive algorithm uses rather than a
- * second calculation: if the Progress screen named different weak areas than the
- * ones the quiz drills, one of them would be lying.
- */
+// weakest chapters. uses the same weakestTopics as the adaptive quiz so both
+// screens show the same weak areas
 export async function fetchWeakestChapters(
   limit = 3,
 ): Promise<Array<{ topicId: string; accuracy: number; seen: number }>> {

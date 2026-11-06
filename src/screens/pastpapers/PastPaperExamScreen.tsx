@@ -64,6 +64,7 @@ export function PastPaperExamScreen() {
   const setLastSheet = useExamStore((s) => s.setLastSheet);
   const addPastPaperResult = useProgressStore((s) => s.addPastPaperResult);
 
+  /** Marks the paper locally, saves the result and opens the result screen. */
   const submitExam = async () => {
     if (submitting) return; // the timer and the button can both fire
     setSubmitting(true);
@@ -140,6 +141,7 @@ export function PastPaperExamScreen() {
     );
   }
 
+  /** Asks for confirmation when questions are still unanswered, then submits. */
   const confirmSubmit = () => {
     const unanswered = mcqQuestions.filter((q) => !answers[q.id]).length;
     if (unanswered > 0) {

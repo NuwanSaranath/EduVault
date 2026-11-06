@@ -31,6 +31,7 @@ const SPEED = 210;
 /** Vertical deflection inside the plates, as a fraction of tube half-height. */
 const DEFLECT = 0.62;
 
+/** Scene: cathode ray tube practical — rays travel and bend in an electric field. */
 export function CathodeRayTube({ t, width, height, isDark, reduceMotion }: SceneProps) {
   const c = sceneColors(isDark);
 

@@ -27,6 +27,7 @@ interface QuizSessionState {
   resetSession: () => void;
 }
 
+// the quiz being taken right now (questions, answers, index, result). not saved
 export const useQuizStore = create<QuizSessionState>()((set) => ({
   subjectId: null,
   quizType: 'Mixed',

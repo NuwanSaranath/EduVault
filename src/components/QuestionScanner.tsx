@@ -6,30 +6,19 @@ import { processCapture, type ProcessedImage } from '@/features/hardware/imagePi
 import { palette } from '@/constants/theme';
 
 export interface QuestionScannerProps {
-  /**
-   * Fired once a frame has been captured, downscaled and recompressed. The uri
-   * points at a cache-directory JPEG — the caller is responsible for persisting
-   * it if the image needs to outlive the session.
-   */
+  // called after the photo is taken and resized. the uri is in the cache
+  // folder so save it somewhere if you need to keep it
   onCapture: (image: ProcessedImage) => void;
-  /** Fired when the student backs out without capturing. */
+  // closed without taking a photo
   onCancel: () => void;
-  /** Guidance line rendered over the viewfinder. */
+  // text shown over the camera
   hint?: string;
 }
 
-/**
- * Native camera integration: photograph a printed question to ask about it.
- *
- * The viewfinder is framed as a document scanner rather than a general camera —
- * the overlay guides are sized for a portrait A4 column, which is what an A/L
- * paper actually looks like. That framing is why the capture can be aggressively
- * downscaled: legible text is the only requirement.
- *
- * Permission handling is explicit rather than requested on mount, because a
- * permission dialog the student did not ask for reads as an intrusion in a study
- * app. The prompt only appears once they tap into the scanner.
- */
+// Camera for taking a photo of a question.
+// Looks like a document scanner, the frame is shaped like an exam paper column.
+// Only readable text matters, that's why we can shrink the photo a lot.
+// Permission is only asked when they open the scanner, not on load.
 export function QuestionScanner({ onCapture, onCancel, hint }: QuestionScannerProps) {
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
@@ -47,8 +36,8 @@ export function QuestionScanner({ onCapture, onCancel, hint }: QuestionScannerPr
         setError('The camera did not return an image. Try again.');
         return;
       }
-      // Full quality out of the sensor, then one deliberate downscale — letting
-      // the camera compress first would mean compressing twice and losing text.
+      // take it at full quality and shrink once, compressing twice makes the
+      // text blurry
       const processed = await processCapture(photo.uri, photo.width);
       onCapture(processed);
     } catch (err) {
@@ -58,7 +47,7 @@ export function QuestionScanner({ onCapture, onCancel, hint }: QuestionScannerPr
     }
   }, [busy, onCapture]);
 
-  // Permission state is still loading.
+  // still loading permission
   if (!permission) {
     return (
       <View className="flex-1 items-center justify-center bg-black">
@@ -103,7 +92,7 @@ export function QuestionScanner({ onCapture, onCancel, hint }: QuestionScannerPr
   return (
     <View className="flex-1 bg-black">
       <CameraView ref={cameraRef} facing="back" style={{ flex: 1 }}>
-        {/* Document guides: a portrait frame matching an exam paper column. */}
+        {/* frame shaped like an exam paper column */}
         <View className="flex-1 items-center justify-center">
           <View
             className="rounded-lg border-2 border-dashed"
@@ -150,7 +139,7 @@ export function QuestionScanner({ onCapture, onCancel, hint }: QuestionScannerPr
           )}
         </Pressable>
 
-        {/* Spacer keeps the shutter optically centred. */}
+        {/* spacer so the shutter button stays in the middle */}
         <View className="w-12" />
       </View>
     </View>

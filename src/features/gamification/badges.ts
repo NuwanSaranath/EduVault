@@ -17,12 +17,14 @@ const badgeRules: Record<string, (ctx: BadgeContext) => boolean> = {
   'ach-perfect-score': (ctx) => ctx.quizAttempts.some((a) => a.score === a.totalQuestions),
 };
 
+// badges the student has earned with these stats
 export function evaluateUnlockedBadgeIds(ctx: BadgeContext): string[] {
   return Object.entries(badgeRules)
     .filter(([, rule]) => rule(ctx))
     .map(([id]) => id);
 }
 
+// sets unlockedAt on newly unlocked ones
 export function mergeAchievementUnlocks(
   achievements: Achievement[],
   unlockedIds: string[],

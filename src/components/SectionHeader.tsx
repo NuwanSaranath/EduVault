@@ -6,6 +6,7 @@ interface SectionHeaderProps {
   onAction?: () => void;
 }
 
+// section title + optional link on the right
 export function SectionHeader({ title, actionLabel, onAction }: SectionHeaderProps) {
   return (
     <View className="mb-3 flex-row items-center justify-between">

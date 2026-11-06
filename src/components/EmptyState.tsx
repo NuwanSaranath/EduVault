@@ -8,6 +8,7 @@ interface EmptyStateProps {
   description?: string;
 }
 
+// icon + message when a list is empty
 export function EmptyState({ icon = 'file-tray-outline', title, description }: EmptyStateProps) {
   return (
     <View className="flex-1 items-center justify-center px-8 py-16">

@@ -55,22 +55,26 @@ const pages: Page[] = [
   },
 ];
 
+/** First-run carousel introducing the app. */
 export function OnboardingScreen() {
   const [pageIndex, setPageIndex] = useState(0);
   const scrollRef = useRef<ScrollViewInstance>(null);
   const insets = useSafeAreaInsets();
   const completeOnboarding = useAuthStore((s) => s.completeOnboarding);
 
+  /** Marks onboarding done and goes to login. */
   const finish = () => {
     completeOnboarding();
     router.replace('/(auth)/login');
   };
 
+  /** Scrolls the carousel to a page. */
   const goToPage = (index: number) => {
     scrollRef.current?.scrollTo({ x: index * width, animated: true });
     setPageIndex(index);
   };
 
+  /** Keeps the page indicator in step with manual swiping. */
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const index = Math.round(e.nativeEvent.contentOffset.x / width);
     if (index !== pageIndex) setPageIndex(index);

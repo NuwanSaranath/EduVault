@@ -1,28 +1,20 @@
 import type { Question, QuizAttempt } from '@/types';
 
-/**
- * Constrained-design algorithm #1: adaptive question selection.
- *
- * The constraint is the student's time, not the device's. An A/L candidate has
- * a few hundred practice sessions before the exam and thousands of questions
- * available, so picking at random wastes most of them re-testing what the
- * student already knows. This scores every candidate question and biases the
- * session toward topics that are both weak and stale.
- *
- *   priority = weakness x staleness x difficulty
- *
- * weakness   1 - accuracy on that topic. Unseen topics start at 0.5 so they are
- *            explored rather than starved by topics with a known bad record.
- * staleness  Exponential decay with a 7-day half-life. A topic drilled this
- *            morning drops near zero and climbs back over the following week,
- *            which is what stops the same ten questions recurring every session.
- * difficulty A mild multiplier only. It breaks ties toward harder questions
- *            without letting difficulty override a genuine weakness signal.
- *
- * Entirely pure — no database, no clock, no global RNG — so the whole thing is
- * unit-testable and safe to reason about in a viva. `now` and `random` are
- * injected for exactly that reason.
- */
+// Adaptive question picking.
+// Students have limited time and lots of questions, picking randomly wastes
+// time on stuff they already know. So each question gets a score and the
+// session leans towards topics that are weak and haven't been done in a while.
+//
+//   priority = weakness x staleness x difficulty
+//
+// weakness   1 - accuracy for the topic. new topics start at 0.5 so they
+//            still get picked
+// staleness  goes back up with a 7 day half life. a topic done this morning
+//            is near 0, so the same questions don't keep coming back
+// difficulty small multiplier, only to break ties towards harder questions
+//
+// No db, clock or Math.random inside (now and random are passed in) so it's
+// easy to test.
 
 const DIFFICULTY_WEIGHT: Record<Question['difficulty'], number> = {
   Easy: 1.0,
@@ -30,19 +22,14 @@ const DIFFICULTY_WEIGHT: Record<Question['difficulty'], number> = {
   Hard: 1.3,
 };
 
-/** Days for a topic's staleness to recover halfway back to full weight. */
+// days for a topic to get halfway back to full staleness
 export const HALF_LIFE_DAYS = 7;
 
-/** Accuracy assumed for a topic with no history: neither weak nor mastered. */
+// accuracy for a topic with no history yet
 export const UNSEEN_ACCURACY = 0.5;
 
-/**
- * Share of each session drawn from the top of the priority ranking.
- *
- * The remaining 30% is sampled from the tail. Without it the algorithm tunnels:
- * a student weak in one chapter would see nothing else until it was fixed, which
- * is both demoralising and bad exam preparation.
- */
+// 70% of the session from the top of the ranking, 30% from the rest.
+// otherwise a student weak in one chapter would only ever see that chapter
 export const FOCUS_RATIO = 0.7;
 
 const MS_PER_DAY = 86_400_000;
@@ -50,7 +37,7 @@ const MS_PER_DAY = 86_400_000;
 export interface TopicStat {
   seen: number;
   correct: number;
-  /** Epoch ms of the most recent answer on this topic. */
+  // time (ms) of the last answer on this topic
   lastSeenAt: number;
   accuracy: number;
 }
@@ -62,19 +49,13 @@ export interface ScoredQuestion {
   staleness: number;
 }
 
-/** Topic key. Falls back to subject when a question has no chapter. */
+// chapter, or subject if there's no chapter
 function topicKey(question: Question): string {
   return question.chapterId ?? `subject:${question.subjectId}`;
 }
 
-/**
- * Folds attempt history into per-topic accuracy and recency.
- *
- * Answers reference questions by id, so the caller supplies the pool to resolve
- * each id back to its topic. Questions no longer in the pool (syllabus changed,
- * cache evicted) are skipped rather than bucketed as 'unknown', which would
- * pollute a real topic's stats.
- */
+// work out accuracy and last seen time per topic from attempts.
+// questions not in the pool any more (syllabus changed, evicted) are skipped
 export function buildTopicStats(
   attempts: QuizAttempt[],
   pool: Question[],
@@ -103,11 +84,8 @@ export function buildTopicStats(
   return stats;
 }
 
-/**
- * Staleness in [0, 1): 0 immediately after practice, approaching 1 as the topic
- * is left alone. A never-practised topic is treated as one half-life stale so it
- * competes with recently-missed material without dominating it.
- */
+// 0 right after practice, goes towards 1 over time. never practised =
+// one half life old
 export function stalenessOf(lastSeenAt: number | undefined, now: number): number {
   const daysSince =
     lastSeenAt && lastSeenAt > 0 ? (now - lastSeenAt) / MS_PER_DAY : HALF_LIFE_DAYS;
@@ -115,13 +93,8 @@ export function stalenessOf(lastSeenAt: number | undefined, now: number): number
   return 1 - 2 ** (-daysSince / HALF_LIFE_DAYS);
 }
 
-/**
- * Scores the whole pool, highest priority first.
- *
- * Exposed separately from `selectAdaptiveQuestions` so the Progress screen can
- * show *why* a topic is being pushed ("weakest area: Atomic Structure") from the
- * same numbers the selector uses. One source of truth for the ranking.
- */
+// score every question, highest first. separate from selectAdaptiveQuestions
+// so the progress screen can show why a topic is picked using the same numbers
 export function scoreQuestions(
   pool: Question[],
   attempts: QuizAttempt[],
@@ -135,9 +108,8 @@ export function scoreQuestions(
     const weakness = 1 - accuracy;
     const staleness = stalenessOf(stat?.lastSeenAt, now);
 
-    // The additive floors (0.1, 0.2) stop a single zero factor from collapsing
-    // priority to 0. A fully-mastered topic should rank last, not be excluded —
-    // otherwise mastered material is never revised again.
+    // the + 0.1 and + 0.2 stop one zero from making the whole score 0.
+    // mastered topics should come last, not never
     const priority =
       (0.1 + weakness) * (0.2 + staleness) * DIFFICULTY_WEIGHT[question.difficulty];
 
@@ -150,19 +122,13 @@ export function scoreQuestions(
 export interface SelectOptions {
   count: number;
   now?: number;
-  /** Injected for deterministic tests; defaults to Math.random. */
+  // for tests, defaults to Math.random
   random?: () => number;
-  /** Override the focus/explore split. */
   focusRatio?: number;
 }
 
-/**
- * Picks the questions for one session.
- *
- * Returns fewer than `count` only when the pool itself is smaller. The result is
- * shuffled at the end so the hardest-ranked question is not always question 1 —
- * the ranking decides *which* questions, not what order they are met in.
- */
+// pick the questions for one session. only returns less than count if the
+// pool is smaller. shuffled at the end so the top ranked isn't always first
 export function selectAdaptiveQuestions(
   pool: Question[],
   attempts: QuizAttempt[],
@@ -187,13 +153,8 @@ export function selectAdaptiveQuestions(
   return shuffle([...focused, ...explored], random);
 }
 
-/**
- * Weakest topics, for the Progress screen and the post-quiz summary.
- *
- * Requires `minSeen` observations before calling a topic weak — one unlucky
- * answer is noise, and labelling a chapter a weakness on that basis would send
- * the student revising the wrong thing.
- */
+// weakest topics for progress + quiz summary. needs minSeen answers first,
+// one wrong answer shouldn't make a chapter "weak"
 export function weakestTopics(
   attempts: QuizAttempt[],
   pool: Question[],
@@ -208,7 +169,7 @@ export function weakestTopics(
     .slice(0, limit);
 }
 
-/** Fisher-Yates with an injectable RNG so tests are deterministic. */
+// fisher-yates, random can be passed in for tests
 export function shuffle<T>(items: T[], random: () => number = Math.random): T[] {
   const copy = [...items];
   for (let i = copy.length - 1; i > 0; i -= 1) {

@@ -41,6 +41,7 @@ const BLOCK_COLOURS: Record<Block, string> = {
 /** When each block starts appearing. */
 const BLOCK_AT: Record<Block, number> = { s: 3, p: 9, d: 15, f: 21 };
 
+/** Scene: builds the periodic table block by block. */
 export function PeriodicBuild({ t, width, height, isDark, reduceMotion }: SceneProps) {
   const c = sceneColors(isDark);
 
@@ -60,7 +61,9 @@ export function PeriodicBuild({ t, width, height, isDark, reduceMotion }: SceneP
   const gridIn = easeOut(segment(time, 0, 1.6));
   const conclusionIn = easeOut(segment(time, 24, 25.4));
 
+  /** x position of a periodic-table column. */
   const xOf = (group: number) => geo.left + (group - 1) * geo.cell;
+  /** y position of a periodic-table row. */
   const yOf = (period: number) => geo.top + (period - 1) * geo.cell;
 
   /** Elements grouped by block, so each block staggers within itself. */

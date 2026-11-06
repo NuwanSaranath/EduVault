@@ -5,44 +5,32 @@ import { palette } from '@/constants/theme';
 export type AnswerSheetMode = 'answering' | 'review';
 
 export interface AnswerSheetGridProps {
-  /** Number of questions on the paper. */
+  // number of questions on the paper
   questionCount: number;
-  /** Options per question, labelled A.. upward. @default 5 */
+  // options per question (A, B, C...). default 5
   optionsPerQuestion?: number;
-  /** Current answers, keyed by 1-based question number. */
+  // question number (from 1) -> letter
   answers: Record<number, string>;
-  /**
-   * 'answering' allows changes; 'review' locks the sheet and colours each bubble
-   * against `correctAnswers`. @default 'answering'
-   */
+  // 'answering' can change answers, 'review' locks it and colours right/wrong. default 'answering'
   mode?: AnswerSheetMode;
-  /** Required in review mode to colour right/wrong. */
+  // needed in review mode
   correctAnswers?: Record<number, string>;
-  /** Columns of question rows. Omit to fit automatically to the screen width. */
+  // leave it out to fit the screen width
   columns?: number;
-  /** Highlighted question, e.g. the one the reader is scrolled to. */
+  // question to highlight
   focusedQuestion?: number;
-  /** Fired when a bubble is filled. Not fired in review mode. */
+  // when a bubble is filled (not in review mode)
   onAnswerChange: (questionNo: number, option: string) => void;
-  /** Fired when a question's row is tapped outside its bubbles. */
+  // when a row is tapped but not on a bubble
   onQuestionFocus?: (questionNo: number) => void;
 }
 
-/**
- * Custom component: an OMR-style answer sheet.
- *
- * Modelled on the physical MCQ sheet a Sri Lankan A/L candidate actually fills
- * in. That is the point of building it rather than using a list of radio groups:
- * the student practises on the same spatial layout they will meet in the exam
- * hall, so scanning "which ones have I left blank" is the same motion on paper
- * and on screen. A stack of standard form controls trains the wrong habit.
- *
- * It is also where the constrained-layout work is visible. The grid has no fixed
- * dimensions — `columns` is derived from the measured window width against a
- * minimum legible row width, and bubble diameter is derived from the resulting
- * column width. The same component gives 1 column on a small phone and 3 on a
- * tablet without a single breakpoint or media query.
- */
+// Answer sheet that looks like the real A/L MCQ (OMR) sheet, so students
+// practise on the same layout they'll use in the exam hall instead of a list
+// of radio buttons.
+// No fixed sizes: columns are worked out from the screen width and the bubble
+// size from the column width. 1 column on a small phone, 3 on a tablet, no
+// breakpoints needed.
 export function AnswerSheetGrid({
   questionCount,
   optionsPerQuestion = 5,
@@ -56,11 +44,8 @@ export function AnswerSheetGrid({
 }: AnswerSheetGridProps) {
   const { width } = useWindowDimensions();
 
-  /**
-   * Constraint solve: the narrowest row that stays tappable, then as many
-   * columns as fit. 44px is the platform minimum touch target, so the row needs
-   * the question number plus one 44px-ish target per option.
-   */
+  // smallest row that's still easy to tap (44px per option + the number),
+  // then fit as many columns as we can
   const layout = useMemo(() => {
     const MIN_BUBBLE = 26;
     const NUMBER_GUTTER = 34;
@@ -76,8 +61,7 @@ export function AnswerSheetGrid({
     const columnWidth =
       (available - COLUMN_GAP * (resolvedColumns - 1)) / resolvedColumns;
 
-    // Spend leftover width on bigger bubbles rather than dead space, capped so a
-    // tablet does not render comically large circles.
+    // use spare width for bigger bubbles, but cap it so tablets don't get huge ones
     const bubbleSize = Math.min(
       38,
       Math.max(MIN_BUBBLE, Math.floor((columnWidth - NUMBER_GUTTER) / optionsPerQuestion) - 6),
@@ -91,8 +75,7 @@ export function AnswerSheetGrid({
     [optionsPerQuestion],
   );
 
-  /** Column-major fill, so question 1..n reads top-to-bottom then across —
-   *  the way a printed answer sheet is laid out. */
+  // fill down then across, like the printed sheet
   const columnsOfQuestions = useMemo(() => {
     const perColumn = Math.ceil(questionCount / layout.columns);
     return Array.from({ length: layout.columns }, (_, c) =>
@@ -151,8 +134,7 @@ export function AnswerSheetGrid({
                       return (
                         <Pressable
                           key={option}
-                          // Review mode locks the sheet: a graded paper that can
-                          // still be edited invites accidental tampering.
+                          // can't change answers after marking
                           disabled={isReview}
                           onPress={() => onAnswerChange(questionNo, option)}
                           accessibilityRole="radio"
@@ -198,13 +180,8 @@ interface BubbleState {
   wasWrong: boolean;
 }
 
-/**
- * Resolves one bubble's colours.
- *
- * Review mode shows three distinct states rather than two: the answer given, the
- * answer that was correct, and — when those differ — both at once. Marking only
- * "wrong" tells a student they failed without telling them what to learn.
- */
+// bubble colours. review mode shows what they picked, what was right, and
+// both if different, so they can see the correct answer not just "wrong"
 function bubbleStyle(state: BubbleState): {
   borderColor: string;
   borderWidth: number;

@@ -1,6 +1,7 @@
 import { ActivityIndicator, View } from 'react-native';
 import { palette } from '@/constants/theme';
 
+// spinner, full screen by default
 export function LoadingSpinner({ fullscreen = true }: { fullscreen?: boolean }) {
   if (!fullscreen) return <ActivityIndicator color={palette.primary[500]} />;
 

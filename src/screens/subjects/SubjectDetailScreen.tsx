@@ -13,11 +13,14 @@ import { palette } from '@/constants/theme';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { fetchSubject } from '@/services/subjects';
 import { fetchChapters } from '@/services/theory';
+import { applyChapterCompletion, useCompletedChapterIds } from '@/features/progress/completion';
 
+/** One subject: its chapters with progress. */
 export function SubjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const { data: subject, loading: subjectLoading } = useAsyncData(() => fetchSubject(id), [id]);
+  const completedIds = useCompletedChapterIds();
   const { data: chapters, loading: chaptersLoading } = useAsyncData(
     () => fetchChapters(id),
     [id],
@@ -39,7 +42,7 @@ export function SubjectDetailScreen() {
     );
   }
 
-  const chapterList = chapters ?? [];
+  const chapterList = (chapters ?? []).map((c) => applyChapterCompletion(c, completedIds));
 
   return (
     <ScreenContainer scroll edges={['bottom']}>

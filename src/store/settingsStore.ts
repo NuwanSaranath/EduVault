@@ -7,12 +7,8 @@ export type Language = 'English' | 'Sinhala';
 interface SettingsState {
   notificationsEnabled: boolean;
   language: Language;
-  /**
-   * Constrained-design control surfaced to the user: when on, `syncPlan` holds
-   * image-bearing mutations back for Wi-Fi and skips content refresh entirely.
-   * Read live by the sync engine, so toggling takes effect on the next drain
-   * without restarting the listener.
-   */
+  // when on, photos wait for wifi and content isn't downloaded. the sync
+  // engine reads it each time so it works straight away
   dataSaverEnabled: boolean;
   setNotificationsEnabled: (value: boolean) => void;
   setLanguage: (language: Language) => void;

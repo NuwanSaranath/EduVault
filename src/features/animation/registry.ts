@@ -16,34 +16,20 @@ import { PeriodicBuild } from '@/components/animations/scenes/PeriodicBuild';
 import { PeriodicTrends } from '@/components/animations/scenes/PeriodicTrends';
 import type { AnimationScene } from './types';
 
-/**
- * The animation catalogue.
- *
- * Lessons reference scenes by **id** (`Lesson.animationIds`), never by import.
- * That keeps content data — a lesson pulled from Firestore can name an animation
- * the same way a bundled one does — while each scene stays real code, which is
- * what drawing α-particle scattering actually requires.
- *
- * An id with no scene is skipped by the player, so content can name an animation
- * before it is built without crashing the reader. `missingSceneIds` makes that
- * visible rather than silent.
- *
- * ## Stage timing
- *
- * Stages are declared here, beside the scene, rather than inside it. A scene
- * draws; the registry says what the student is being told at each moment. Two
- * consequences worth knowing:
- *
- *   - The `at` values must match the windows the scene's drawing code uses. The
- *     registry test asserts they stay ordered and inside `duration`, but only
- *     watching the animation confirms they line up with the visuals.
- *   - Captions can be reworded — by a teacher, or into another language —
- *     without touching drawing code.
- *
- * Ordered by syllabus section, which is the order they appear in the reader.
- */
+// All the animations.
+// Lessons use scenes by id (Lesson.animationIds), not imports, so a lesson from
+// firestore can name one the same way. Scenes themselves are real code.
+// An unknown id is just skipped, missingSceneIds lists them.
+//
+// Stage timings are set here next to the scene, not inside it. The scene draws,
+// this says what the caption is at each point.
+//  - `at` values have to match the timing in the scene's drawing code. the test
+//    checks they're in order and within duration, but you have to watch it to
+//    be sure they line up
+//  - captions can be changed (or translated) without touching drawing code
+// In syllabus order.
 export const animationScenes: AnimationScene[] = [
-  // ══ 1.1 පදාර්ථය පිළිබඳ පරමාණුකවාදය ═══════════════════════════════════════
+  // 1.1 පදාර්ථය පිළිබඳ පරමාණුකවාදය
   {
     id: 'anim-atom-scale',
     sectionNumber: '1.1',
@@ -374,7 +360,7 @@ export const animationScenes: AnimationScene[] = [
     ],
   },
 
-  // ══ 1.2 විද්‍යුත්-චුම්බක විකිරණ ══════════════════════════════════════════
+  // 1.2 විද්‍යුත්-චුම්බක විකිරණ
   {
     id: 'anim-energy-quantisation',
     sectionNumber: '1.2.1',
@@ -532,7 +518,7 @@ export const animationScenes: AnimationScene[] = [
     ],
   },
 
-  // ══ 1.3 ඉලෙක්ට්‍රෝනික ශක්ති මට්ටම් ═══════════════════════════════════════
+  // 1.3 ඉලෙක්ට්‍රෝනික ශක්ති මට්ටම්
   {
     id: 'anim-hydrogen-spectrum',
     sectionNumber: '1.3.1',
@@ -764,7 +750,7 @@ export const animationScenes: AnimationScene[] = [
     ],
   },
 
-  // ══ 1.4 ඉලෙක්ට්‍රෝන විනයාස ═══════════════════════════════════════════════
+  // 1.4 ඉලෙක්ට්‍රෝන විනයාස
   {
     id: 'anim-aufbau-filling',
     sectionNumber: '1.4',
@@ -840,7 +826,7 @@ export const animationScenes: AnimationScene[] = [
     ],
   },
 
-  // ══ 1.5 ආවර්තිතා වගුව ═══════════════════════════════════════════════════
+  // 1.5 ආවර්තිතා වගුව
   {
     id: 'anim-periodic-build',
     sectionNumber: '1.5',
@@ -906,7 +892,7 @@ export const animationScenes: AnimationScene[] = [
     ],
   },
 
-  // ══ 1.6 ආවර්තීය නැඹුරුතා ════════════════════════════════════════════════
+  // 1.6 ආවර්තීය නැඹුරුතා
   {
     id: 'anim-periodic-trends',
     sectionNumber: '1.6',
@@ -975,20 +961,14 @@ export const animationScenes: AnimationScene[] = [
   },
 ];
 
-/** Index for id lookup. Built once — the catalogue is static. */
 const byId = new Map(animationScenes.map((scene) => [scene.id, scene]));
 
 export function getScene(id: string): AnimationScene | undefined {
   return byId.get(id);
 }
 
-/**
- * Resolves a lesson's animation ids to scenes, dropping unknown ids.
- *
- * Dropping rather than throwing is deliberate: content may name an animation
- * that has not been built yet, and a missing illustration must never stop a
- * student reading the lesson.
- */
+// lesson ids -> scenes, unknown ids dropped instead of throwing. a missing
+// animation shouldn't stop someone reading the lesson
 export function scenesForLesson(animationIds: string[] | undefined): AnimationScene[] {
   if (!animationIds?.length) return [];
   return animationIds
@@ -996,7 +976,7 @@ export function scenesForLesson(animationIds: string[] | undefined): AnimationSc
     .filter((scene): scene is AnimationScene => scene !== undefined);
 }
 
-/** Ids referenced by content but not yet implemented. Surfaced by the tests. */
+// ids used in content that don't have a scene yet (checked in tests)
 export function missingSceneIds(animationIds: string[]): string[] {
   return animationIds.filter((id) => !byId.has(id));
 }

@@ -58,6 +58,7 @@ export const aiTutorKnowledgeBase: AiTutorEntry[] = [
   },
 ];
 
+// first entry whose keyword is in the question
 export function findAiTutorEntry(query: string): AiTutorEntry | undefined {
   const normalized = query.toLowerCase();
   return aiTutorKnowledgeBase.find((entry) =>

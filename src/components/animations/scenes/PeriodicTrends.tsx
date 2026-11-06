@@ -96,6 +96,7 @@ const TRENDS: Trend[] = [
   },
 ];
 
+/** Scene: radius, ionisation energy, electronegativity and electron affinity trends on one table. */
 export function PeriodicTrends({ t, width, height, isDark, reduceMotion }: SceneProps) {
   const c = sceneColors(isDark);
 
@@ -113,7 +114,9 @@ export function PeriodicTrends({ t, width, height, isDark, reduceMotion }: Scene
   const gridIn = easeOut(segment(time, 0, 1.6));
   const conclusionIn = easeOut(segment(time, 26, 27.4));
 
+  /** x position of a periodic-table column. */
   const xOf = (group: number) => geo.left + (group - 1) * geo.cell;
+  /** y position of a periodic-table row. */
   const yOf = (period: number) => geo.top + (period - 1) * geo.cell;
 
   const trend = TRENDS.reduce<Trend | null>((acc, k) => (time >= k.at ? k : acc), null);

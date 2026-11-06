@@ -10,6 +10,7 @@ import { fetchAllPastPapers } from '@/services/pastPapers';
 import { palette } from '@/constants/theme';
 import type { PastPaper } from '@/types';
 
+/** Past-paper list with subject and year filters. */
 export function PastPapersScreen() {
   const { subjects: streamSubjects } = useStreamSubjects();
 

@@ -30,6 +30,7 @@ const AXIS_ANGLE = {
   z: -90, // straight up
 };
 
+/** Scene: shapes of s, p and d orbitals. */
 export function OrbitalShapes({ t, width, height, isDark, reduceMotion }: SceneProps) {
   const c = sceneColors(isDark);
 
@@ -96,6 +97,7 @@ export function OrbitalShapes({ t, width, height, isDark, reduceMotion }: SceneP
     );
   };
 
+  /** End point of an axis line at the given angle. */
   const axisEnd = (angleDeg: number, scale = 1.12) => {
     const rad = (angleDeg * Math.PI) / 180;
     return {

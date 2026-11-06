@@ -33,8 +33,8 @@ const lightNotes: Record<string, { notes: string; points: string[]; summary: str
 export const chapters: Chapter[] = [];
 export const lessons: Lesson[] = [];
 
-// Chapters with real, fully-written lessons (rather than the single generic
-// "Overview" lesson) — keyed by chapter id, valued by how many lessons they have.
+// chapters with full lessons (not just the one "Overview" lesson),
+// chapter id -> number of lessons
 const flagshipLessonCounts: Record<string, number> = {
   'physics-ch1': 3,
   'chemistry-ch1': 7,
@@ -64,7 +64,7 @@ for (const seed of seeds) {
   });
 }
 
-// Flagship, fully fleshed content: Physics > Mechanics
+// full content: physics > mechanics
 lessons.push(
   {
     id: 'physics-ch1-l1',
@@ -120,11 +120,11 @@ lessons.push(
   },
 );
 
-// Chemistry > Atomic Structure — full guided-teaching lessons live in their own
-// module because of their size (see lessons/chemistryAtomicStructure.ts).
+// chemistry > atomic structure, in its own file because it's big
+// (lessons/chemistryAtomicStructure.ts)
 lessons.push(...atomicStructureLessons);
 
-// Light lessons for every other chapter, using per-chapter question links where available.
+// simple lessons for all the other chapters
 for (const chapter of chapters) {
   if (chapter.id in flagshipLessonCounts) continue;
   const lessonId = chapter.lessonIds[0];

@@ -1,15 +1,9 @@
 import { palette } from '@/constants/theme';
 import type { SceneColors } from './types';
 
-/**
- * One palette for every scene, resolved per theme.
- *
- * Centralised for a pedagogical reason rather than a stylistic one: a proton is
- * red in *every* animation, an electron blue in every animation. If the isotope
- * scene and the Rutherford scene coloured particles differently, a student would
- * have to re-learn the key each time and the two diagrams could not be compared.
- * Consistency of colour is part of the teaching, so it is not left to each scene.
- */
+// same colours in every scene, e.g. proton always red, electron always blue.
+// if each scene used different colours students would have to relearn them
+// and couldn't compare diagrams
 export function sceneColors(isDark: boolean): SceneColors {
   return isDark
     ? {
@@ -46,7 +40,7 @@ export function sceneColors(isDark: boolean): SceneColors {
       };
 }
 
-/** The key rendered under every scene, so the colours are never unexplained. */
+// legend shown under every scene
 export const PARTICLE_LEGEND: Array<{ key: keyof SceneColors; labelSi: string }> = [
   { key: 'proton', labelSi: 'ප්‍රෝටෝන (+)' },
   { key: 'neutron', labelSi: 'නියුට්‍රෝන (0)' },

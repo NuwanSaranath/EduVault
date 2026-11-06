@@ -4,19 +4,12 @@ import { getDb } from '@/db';
 import { enqueue } from '@/db/repositories/outboxRepo';
 import { persistCapture } from '@/features/hardware/imagePipeline';
 
-/**
- * The AI tutor.
- *
- * Answers come from a bundled knowledge base, which is a deliberate choice
- * rather than a placeholder: an explanation that only works with signal is
- * useless to the student this app is for. The local base handles the syllabus
- * topics it knows, instantly and offline.
- *
- * What it cannot answer becomes data instead of a dead end. Both unmatched
- * questions and scanned photos are queued through the outbox as `tutorQuestion`
- * rows, so they reach the backend when a connection appears — the same mechanism
- * quiz results use, with the image deferred to Wi-Fi by `syncPlan`.
- */
+// AI tutor.
+// Answers come from a knowledge base bundled in the app, so it works offline
+// for the syllabus topics it knows.
+// Questions it can't answer and scanned photos go into the outbox as
+// tutorQuestion rows and get sent when there's a connection (photos wait for
+// wifi if data saver is on).
 
 const UNKNOWN_REPLY =
   "I don't have a local explanation for that yet. I've saved your question — it will be sent for a full answer next time you're online. In the meantime, try asking about Newton's laws, kinematics, photosynthesis, chemical bonding, or demand & supply.";
@@ -28,13 +21,8 @@ function messageId(): string {
   return `msg-${Date.now()}-${Math.floor(Math.random() * 1e4)}`;
 }
 
-/**
- * Answers a typed question.
- *
- * Synchronous in spirit — the local lookup is a map hit, so there is no spinner
- * to justify. Unmatched questions are queued before returning, so the student's
- * input is never silently discarded.
- */
+// answer a typed question. it's just a lookup so no loading spinner.
+// if there's no match it gets queued so the question isn't lost
 export async function askAiTutor(question: string): Promise<AiTutorMessage> {
   const entry = findAiTutorEntry(question);
 
@@ -61,20 +49,15 @@ export async function askAiTutor(question: string): Promise<AiTutorMessage> {
 }
 
 export interface ScanSubmission {
-  /** Processed (already downscaled) capture uri. */
+  // already resized photo
   imageUri: string;
-  /** Optional typed context the student added alongside the photo. */
+  // optional text the student typed with the photo
   note?: string;
   bytes: number;
 }
 
-/**
- * Submits a scanned question.
- *
- * The capture is copied out of the cache directory first: the outbox row will
- * outlive this session, and a reference to a file Android has since cleared
- * would push an empty payload.
- */
+// copy the photo out of the cache folder first. android can clear the
+// cache and the outbox row might wait a long time
 export async function submitScannedQuestion(
   submission: ScanSubmission,
 ): Promise<AiTutorMessage> {
@@ -103,13 +86,8 @@ interface TutorQueueInput {
   bytes?: number;
 }
 
-/**
- * Appends a tutor question to the outbox.
- *
- * `mediaUri` is what makes the Data Saver policy work: rows carrying an image
- * are marked `needs_media`, and `syncPlan` excludes them from the batch on a
- * metered connection while still flushing everything else.
- */
+// add to outbox. mediaUri sets needs_media so syncPlan can skip it on
+// mobile data while other stuff still syncs
 async function queueTutorQuestion(input: TutorQueueInput): Promise<void> {
   const db = await getDb();
   await enqueue(db, {

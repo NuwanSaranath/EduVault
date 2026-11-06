@@ -14,7 +14,8 @@ import { palette } from '@/constants/theme';
 import { AL_EXAM_DATE_ISO, DAILY_MCQ_GOAL } from '@/constants/examConfig';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import { fetchRecommendedLessons } from '@/services/theory';
-import { fetchOverallChapterStats } from '@/services/progress';
+import { fetchAllChapters } from '@/services/progress';
+import { chapterLessonTotals, useCompletedChapterIds } from '@/features/progress/completion';
 import { fetchSubject } from '@/services/subjects';
 import { useAuthStore } from '@/store/authStore';
 import { useProgressStore } from '@/store/progressStore';
@@ -35,6 +36,7 @@ const quickActions = [
 /** Full length of the study plan, used as the countdown ring's full sweep. */
 const STUDY_PLAN_DAYS = 365;
 
+/** Home tab: greeting, daily goal, exam countdown ring, stats, quick actions, recommended lessons. */
 export function HomeScreen() {
   const user = useAuthStore((s) => s.user);
   const {
@@ -48,7 +50,8 @@ export function HomeScreen() {
 
   // Chapter totals come from SQLite rather than a hardcoded divisor, so theory
   // progress stays correct when content is added by a sync.
-  const { data: chapterStats } = useAsyncData(() => fetchOverallChapterStats(), []);
+  const { data: allChapters } = useAsyncData(() => fetchAllChapters(), []);
+  const completedIds = useCompletedChapterIds();
 
   const { data: recommended } = useAsyncData(
     () => fetchRecommendedLessons(completedChapterIds, 3),
@@ -65,8 +68,7 @@ export function HomeScreen() {
     return Object.fromEntries(entries);
   }, [(recommended ?? []).map((l) => l.id).join(',')]);
 
-  const totalLessons = chapterStats?.total ?? 0;
-  const completedLessons = chapterStats?.completed ?? 0;
+  const { totalLessons, completedLessons } = chapterLessonTotals(allChapters ?? [], completedIds);
   const theoryPercent = totalLessons === 0 ? 0 : (completedLessons / totalLessons) * 100;
 
   // Zero when there is no history, not a flattering placeholder. A student

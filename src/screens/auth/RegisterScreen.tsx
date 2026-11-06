@@ -10,6 +10,7 @@ import { isNonEmpty, isValidEmail, isValidPassword } from '@/utils/validators';
 
 const alYears = ['2026', '2027', '2028'];
 
+/** Create-account form: name, email, password, school, district, A/L year, stream. */
 export function RegisterScreen() {
   const [form, setForm] = useState({
     name: '',
@@ -25,9 +26,11 @@ export function RegisterScreen() {
   const [loading, setLoading] = useState(false);
   const setUser = useAuthStore((s) => s.setUser);
 
+  /** Updates one form field. */
   const update = (key: keyof typeof form) => (value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
 
+  /** Validates the form, creates the account and opens the tabs. */
   const onSubmit = async () => {
     const nextErrors: Record<string, string> = {};
     if (!isNonEmpty(form.name)) nextErrors.name = 'Enter your full name';

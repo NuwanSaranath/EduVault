@@ -1,24 +1,14 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-/**
- * Bump this whenever the DDL below changes, and add a matching `if (version <
- * N)` block in `migrate`. The current version is stored in SQLite's own
- * `user_version` pragma, so migrations survive app restarts without a
- * separate bookkeeping table.
- */
+// bump this when the tables change and add an `if (version < N)` block in
+// migrate. the version is saved in sqlite's user_version pragma
 export const SCHEMA_VERSION = 1;
 
 export const DATABASE_NAME = 'eduvault.db';
 
-/**
- * Applies any migrations the open database has not seen yet.
- *
- * Passed to `SQLiteProvider onInit`, so it runs exactly once per app launch
- * before any repository query is allowed to touch the connection.
- */
+// runs any migrations this db hasn't had yet. called from getDb()
 export async function migrate(db: SQLiteDatabase): Promise<void> {
-  // WAL lets the sync engine write to the outbox while a screen is mid-read,
-  // which matters because drains are triggered by NetInfo, not by the UI.
+  // WAL so the sync engine can write while a screen is reading
   await db.execAsync('PRAGMA journal_mode = WAL;');
   await db.execAsync('PRAGMA foreign_keys = ON;');
 

@@ -1,16 +1,9 @@
 import type { Persistence } from 'firebase/auth';
 
-/**
- * `getReactNativePersistence` ships in the `react-native` entry point of
- * @firebase/auth but is omitted from the published `firebase/auth` type
- * definitions, which only declare the browser and node surfaces. Metro resolves
- * the RN build at runtime, so the function does exist — this augments the types
- * so call sites need no cast or @ts-expect-error.
- *
- * The top-level `import type` above is load-bearing: without it this file is not
- * a module, and `declare module` would *replace* firebase/auth's declarations
- * instead of adding to them, hiding every real export.
- */
+// getReactNativePersistence exists in the react native build of firebase/auth
+// but isn't in its types, so add it here.
+// the `import type` above is needed, without it this file isn't a module and
+// this would replace firebase/auth's types instead of adding to them
 declare module 'firebase/auth' {
   export function getReactNativePersistence(storage: {
     setItem(key: string, value: string): Promise<void>;

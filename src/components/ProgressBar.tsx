@@ -10,6 +10,7 @@ interface ProgressBarProps {
   colors?: [string, string];
 }
 
+// gradient bar, animates to percent (0-100)
 export function ProgressBar({ percent, height = 8, colors = gradients.primary }: ProgressBarProps) {
   const width = useSharedValue(0);
 

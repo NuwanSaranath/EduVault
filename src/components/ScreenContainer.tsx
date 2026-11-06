@@ -6,6 +6,7 @@ interface ScreenContainerProps extends ViewProps {
   edges?: ('top' | 'bottom' | 'left' | 'right')[];
 }
 
+// screen wrapper: background, safe area, optional scroll
 export function ScreenContainer({
   children,
   className,

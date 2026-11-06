@@ -1,35 +1,29 @@
-/**
- * Constrained-design policy #3: decide *what* may sync before deciding *how*.
- *
- * A student on a prepaid cellular plan should not have a 2 MB question photo
- * pushed the moment they walk out of Wi-Fi range. The engine asks this function
- * on every drain, so connectivity changes and the Data Saver toggle both take
- * effect on the next batch with no listener re-wiring.
- *
- * Pure and dependency-free so it can be unit-tested without a device.
- */
+// Decides what is allowed to sync on the current connection.
+// e.g. don't upload a 2 MB photo on someone's prepaid mobile data.
+// Called on every drain so network changes and the Data Saver toggle apply
+// right away. No imports so it's easy to unit test.
 
 export type ConnectionType = 'wifi' | 'cellular' | 'ethernet' | 'other' | 'none' | 'unknown';
 
 export interface NetworkSnapshot {
   isConnected: boolean;
-  /** NetInfo reports this separately: associated to an AP but no route out. */
+  // connected to wifi but no internet is possible, so netinfo has this separately
   isInternetReachable: boolean | null;
   type: ConnectionType;
-  /** True when the OS itself is in a metered/low-data mode (Android only). */
+  // android low data mode
   isMetered?: boolean;
 }
 
 export interface SyncPlan {
-  /** Push queued text mutations (attempts, planner, progress, bookmarks). */
+  // quiz attempts, planner, progress, bookmarks
   pushText: boolean;
-  /** Push mutations carrying an image (Snap & Ask captures). */
+  // photos from Snap & Ask
   pushMedia: boolean;
-  /** Pull refreshed syllabus content. */
+  // download new syllabus content
   pullContent: boolean;
-  /** How many outbox rows to attempt in one drain. */
+  // how many outbox rows per drain
   batchSize: number;
-  /** Human-readable justification, surfaced in the Settings sync panel. */
+  // shown in settings
   reason: string;
 }
 
@@ -42,10 +36,8 @@ const OFFLINE: SyncPlan = {
 };
 
 export function syncPlan(net: NetworkSnapshot, dataSaverEnabled: boolean): SyncPlan {
-  // `isInternetReachable === null` means NetInfo has not probed yet. Treat that
-  // as usable rather than offline: a false negative here delays every sync on
-  // cold start, whereas a false positive just costs one failed attempt that the
-  // outbox retries anyway.
+  // null = netinfo hasn't checked yet. treat as online, worst case one
+  // attempt fails and the outbox retries it
   if (!net.isConnected || net.isInternetReachable === false) return OFFLINE;
 
   const unmetered = net.type === 'wifi' || net.type === 'ethernet';
@@ -65,8 +57,7 @@ export function syncPlan(net: NetworkSnapshot, dataSaverEnabled: boolean): SyncP
       pushText: true,
       pushMedia: false,
       pullContent: false,
-      // Smaller batches: each request is billed data, so fail fast and cheap
-      // rather than pushing 50 rows into a connection that is about to drop.
+      // smaller batches on paid data, fail early if the connection drops
       batchSize: 10,
       reason: 'Data Saver on — results sync now, photos wait for Wi-Fi',
     };
@@ -81,12 +72,8 @@ export function syncPlan(net: NetworkSnapshot, dataSaverEnabled: boolean): SyncP
   };
 }
 
-/**
- * Exponential backoff with a cap, keyed on the row's own attempt count.
- *
- * Stored per row rather than per engine run, so a poison message backs off
- * without also throttling healthy rows queued behind it.
- */
+// exponential backoff with a cap. based on each row's own attempts so one
+// broken row doesn't slow down the others
 export function backoffMs(attempts: number): number {
   const base = 2_000;
   const capped = Math.min(attempts, 5);

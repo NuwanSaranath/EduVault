@@ -8,6 +8,7 @@ import { palette } from '@/constants/theme';
 import { usePlannerStore } from '@/store/plannerStore';
 import type { PlannerEvent } from '@/types';
 
+/** Weekly study planner: pick a day, add and remove sessions. */
 export function PlannerScreen() {
   const today = weekDays[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
   const [selectedDay, setSelectedDay] = useState<PlannerEvent['day']>(today);
@@ -31,6 +32,7 @@ export function PlannerScreen() {
     .filter((e) => e.day === selectedDay)
     .sort((a, b) => a.time.localeCompare(b.time));
 
+  /** Adds a new study session for the selected day and resets the form. */
   const submitEvent = () => {
     if (!form.activity.trim()) return;
     addEvent({

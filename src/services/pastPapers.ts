@@ -5,15 +5,9 @@ import {
   getQuestionsByIds,
 } from '@/db/repositories/contentRepo';
 
-/**
- * Past papers, read from the SQLite cache.
- *
- * Grading is intentionally local and synchronous. A student sitting a timed
- * paper must get their result the instant they submit — routing marking through
- * the backend would make the most stressful moment in the app depend on signal.
- * The graded result is then written through the outbox, so the server learns
- * about it whenever the network allows.
- */
+// past papers from sqlite. marking is done on the phone so the student gets
+// the result as soon as they submit, even with no signal. the result then
+// goes through the outbox
 export async function fetchAllPastPapers(): Promise<PastPaper[]> {
   return getPastPapers();
 }
@@ -32,12 +26,8 @@ export async function fetchPastPaperQuestions(id: string): Promise<Question[]> {
   return getQuestionsByIds(paper.questionIds);
 }
 
-/**
- * Marks a submitted paper.
- *
- * Async only because the questions come from SQLite — the marking itself is pure
- * arithmetic over data already in hand, so it cannot fail for network reasons.
- */
+// mark a paper. only async because questions come from sqlite, the marking
+// itself is just maths so it can't fail because of network
 export async function gradePastPaper(
   pastPaperId: string,
   answers: { questionId: string; givenAnswer: string; chapterTitle?: string }[],

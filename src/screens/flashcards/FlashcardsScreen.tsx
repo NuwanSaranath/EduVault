@@ -54,6 +54,7 @@ export function FlashcardsScreen() {
     return { pool, cards: buildDeck(pool, attempts, DECK_SIZE) };
   }, [activeSubjectId, sessionKey]);
 
+  /** Records a swipe grade (known / review) for the current session. */
   const handleGrade = useCallback((cardId: string, grade: CardGrade) => {
     grades.current.push({ cardId, grade });
   }, []);
@@ -72,6 +73,7 @@ export function FlashcardsScreen() {
     [addQuizAttempt, deckData?.pool],
   );
 
+  /** Starts a fresh deck session. */
   const restart = () => {
     grades.current = [];
     startedAt.current = Date.now();

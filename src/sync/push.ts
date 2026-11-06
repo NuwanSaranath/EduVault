@@ -14,16 +14,10 @@ import { markEventSynced, purgeEvent } from '@/db/repositories/plannerRepo';
 import { markBookmarkSynced } from '@/db/repositories/bookmarkRepo';
 import { mergeProgress } from './merge';
 
-/**
- * The push half of sync: applies one outbox row to Firestore, then flips the
- * local row's `synced` flag.
- *
- * Errors are thrown, not swallowed — the engine decides whether a failure means
- * "retry later" (network) or "give up" (validation), and only it may touch the
- * attempt counter.
- */
+// Push side of sync. Sends one outbox row to firestore and marks the local
+// row as synced. Errors are thrown so the engine can decide retry or give up.
 
-/** Thrown for failures that retrying cannot fix, so the engine stops early. */
+// for errors that retrying won't fix
 export class PermanentPushError extends Error {
   constructor(message: string) {
     super(message);
@@ -31,14 +25,15 @@ export class PermanentPushError extends Error {
   }
 }
 
+// throws if not signed in (that one can be retried)
 function requireUid(): string {
   if (!isFirebaseConfigured()) {
     throw new Error('Firebase not configured');
   }
   const uid = getFirebaseAuth().currentUser?.uid;
   if (!uid) {
-    // Not permanent: the student may simply not have signed in yet. The row
-    // waits in the outbox and flushes after the next successful login.
+    // not permanent, they might just not be logged in yet. the row waits in
+    // the outbox until they log in
     throw new Error('No signed-in user');
   }
   return uid;
@@ -80,12 +75,8 @@ export async function pushRow(row: OutboxRow): Promise<void> {
   }
 }
 
-/**
- * Append-only writes are idempotent by construction: the document id is the
- * client-generated entity id, so replaying a row that already landed is a
- * harmless overwrite with identical data. That is what makes "push, lose the
- * ack, push again" safe without server-side de-duplication.
- */
+// doc id is the id made on the phone, so pushing the same row twice just
+// writes the same data again. no duplicates if we lose the reply and retry
 async function pushAppendOnly(
   uid: string,
   sub: string,
@@ -99,13 +90,9 @@ async function pushAppendOnly(
   });
 }
 
-/**
- * Last-write-wins, enforced on the server side of the comparison.
- *
- * Reading the remote `updatedAt` inside a transaction stops a stale queued edit
- * from clobbering a newer one made on another device — without it, a mutation
- * that sat in the outbox for two days would win purely by arriving last.
- */
+// last write wins, but checked against firestore inside a transaction.
+// otherwise an old edit stuck in the outbox for days would overwrite a newer
+// one from another device just because it arrived last
 async function pushPlannerEvent(
   uid: string,
   op: OutboxOp,
@@ -133,13 +120,8 @@ async function pushPlannerEvent(
   await markEventSynced(id);
 }
 
-/**
- * Progress is the only entity where the client must not simply overwrite.
- *
- * The transaction reads the server snapshot and runs the same `mergeProgress`
- * the pull side uses, so XP and completion sets converge to the same value
- * regardless of which device pushes last or in what order.
- */
+// progress can't just be overwritten. read the server copy and merge it
+// (same mergeProgress as pull) so all devices end up with the same xp
 async function pushProgress(uid: string, local: ProgressSnapshot): Promise<void> {
   const db = getFirestoreDb();
   const ref = doc(db, 'users', uid, 'progress', 'summary');
@@ -169,7 +151,7 @@ async function pushBookmark(
   await markBookmarkSynced(lessonId);
 }
 
-/** Used by the engine's first-login reconciliation. */
+// used when someone logs in for the first time on this device
 export async function fetchRemoteProgress(): Promise<ProgressSnapshot | null> {
   const uid = requireUid();
   const snap = await getDoc(doc(getFirestoreDb(), 'users', uid, 'progress', 'summary'));

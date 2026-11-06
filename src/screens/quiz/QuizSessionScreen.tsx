@@ -14,6 +14,7 @@ import type { Question } from '@/types';
 
 const QUESTION_SECONDS = 30;
 
+/** One question with its options (or short answer), a per-question timer and feedback. */
 function QuestionCard({
   question,
   onAnswered,
@@ -32,6 +33,7 @@ function QuestionCard({
 
   const feedbackStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
+  /** Locks in the answer, plays the feedback animation, then reports it. */
   const submit = (answer: string) => {
     if (submitted) return;
     setSubmitted(true);
@@ -41,6 +43,7 @@ function QuestionCard({
     setTimeout(() => onAnswered(answer), 900);
   };
 
+  /** Whether an option is the correct one (for colouring). */
   const isCorrectAnswer = (option: string) => isAnswerCorrect(question, option);
 
   return (
@@ -147,6 +150,7 @@ function QuestionCard({
   );
 }
 
+/** Runs a quiz session one question at a time. */
 export function QuizSessionScreen() {
   const { questions, currentIndex, answers, nextQuestion, answerCurrent, isDailyChallenge, subjectId, startedAt, finishSession, resetSession } =
     useQuizStore();
@@ -158,6 +162,7 @@ export function QuizSessionScreen() {
     return null;
   }
 
+  /** Saves the answer; moves on, or scores the quiz and opens the result after the last one. */
   const handleAnswered = (answer: string) => {
     answerCurrent(answer);
     const isLast = currentIndex === questions.length - 1;

@@ -5,14 +5,8 @@ import { getRecentAttempts } from '@/db/repositories/attemptRepo';
 import { selectAdaptiveQuestions, shuffle } from '@/features/quiz/adaptive';
 import { getFirestoreDb, isFirebaseConfigured } from './firebase';
 
-/**
- * Quiz question sourcing.
- *
- * The pool comes from SQLite and the *selection* comes from the adaptive
- * algorithm, which means a student's session is tailored using only data already
- * on the device. That is the point: personalisation that needs no round trip
- * works identically offline, which a server-side recommender never would.
- */
+// quiz questions come from sqlite and the adaptive algorithm picks them,
+// so it's personalised without needing the server
 export async function fetchQuizQuestions(
   subjectId: string,
   type: QuestionType | 'Mixed' = 'Mixed',
@@ -22,31 +16,22 @@ export async function fetchQuizQuestions(
     (q) => type === 'Mixed' || q.type === type,
   );
 
-  // Attempt history is read across all subjects, not just this one: a chapter's
-  // accuracy is the same fact regardless of which session it was measured in.
+  // use attempts from all subjects, a chapter's accuracy is the same anywhere
   const attempts = await getRecentAttempts();
 
   return selectAdaptiveQuestions(pool, attempts, { count });
 }
 
-/**
- * The daily challenge stays deliberately random rather than adaptive.
- *
- * Its job is variety and streak-keeping, so the same weak-topic bias that helps
- * a practice session would make the daily feel like punishment for a bad week.
- */
+// daily challenge is random on purpose, not adaptive. it's for variety,
+// drilling weak topics every day would feel like a punishment
 export async function fetchDailyChallenge(): Promise<Question[]> {
   const all = await getAllQuestions();
   return shuffle(all).slice(0, 5);
 }
 
-/**
- * Leaderboard: the one genuinely online-only read in the app.
- *
- * It is inherently a comparison against other users, so there is nothing
- * meaningful to cache — a stale leaderboard is worse than an honest empty state.
- * Callers render an "available when online" message on an empty array.
- */
+// leaderboard, the only thing that needs to be online. it's comparing with
+// other users so caching it doesn't make sense. empty array = show
+// "available when online"
 export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
   if (!isFirebaseConfigured()) return [];
 
@@ -61,8 +46,7 @@ export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
       rank: index + 1,
     }));
   } catch {
-    // Offline, or the collection does not exist yet. An empty list is the
-    // correct answer here, not an exception the UI has to handle.
+    // offline or no collection yet, just return empty
     return [];
   }
 }

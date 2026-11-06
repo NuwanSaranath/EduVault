@@ -7,6 +7,7 @@ interface AsyncDataState<T> {
   refetch: () => void;
 }
 
+// runs an async loader, gives back { data, loading, error, refetch }
 export function useAsyncData<T>(fetcher: () => Promise<T>, deps: unknown[] = []): AsyncDataState<T> {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);

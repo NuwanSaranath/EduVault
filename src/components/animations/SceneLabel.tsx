@@ -5,32 +5,22 @@ export interface SceneLabelProps {
   y: number;
   text: string;
   color: string;
-  /** 0 hides the label entirely; used to fade labels in with the animation. */
+  // 0 = hidden, for fading in
   opacity?: number;
   size?: number;
   bold?: boolean;
-  /** Horizontal anchor relative to (x, y). @default 'center' */
+  // default 'center'
   anchor?: 'start' | 'center' | 'end';
-  /** Maximum width before wrapping. */
   maxWidth?: number;
-  /** Draws a translucent plate behind the text, for labels over busy artwork. */
+  // see-through box behind the text for busy backgrounds
   plate?: boolean;
   plateColor?: string;
 }
 
-/**
- * A text label positioned over a scene's SVG canvas.
- *
- * Labels are React Native `<Text>` rather than SVG `<Text>`, deliberately.
- * Lesson content here is Sinhala, and complex-script shaping (consonant
- * conjuncts, vowel signs that attach on both sides of a glyph) is handled by the
- * platform text engine but historically unreliable inside react-native-svg on
- * Android. Rendering through RN's own text stack also inherits the user's font
- * scaling and dark-mode colours for free — neither of which SVG text does.
- *
- * The cost is that labels cannot be transformed with the SVG viewBox, so scenes
- * position them in the same pixel space they use for the drawing.
- */
+// text label on top of the svg.
+// uses RN Text not svg Text because sinhala letters don't always render right
+// in react-native-svg on android. also gets font scaling and dark mode for free.
+// downside: no viewBox scaling, so scenes place labels in pixels
 export function SceneLabel({
   x,
   y,
@@ -46,8 +36,7 @@ export function SceneLabel({
 }: SceneLabelProps) {
   if (opacity <= 0.01) return null;
 
-  // `left`/`right` rather than a transform: RN has no intrinsic text measurement
-  // during layout, so anchoring is expressed as which edge is pinned.
+  // left/right instead of transform, RN can't measure text during layout
   const horizontal =
     anchor === 'start'
       ? { left: x }

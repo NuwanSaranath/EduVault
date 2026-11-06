@@ -1,5 +1,4 @@
-// Architecture stub for the future admin panel/backend. No UI consumes this
-// yet — it documents the contract a backend team can implement against.
+// not used yet. just the shape of what the admin panel / backend would need
 import type { PaperType } from '@/types';
 
 export interface UploadTheoryPdfPayload {

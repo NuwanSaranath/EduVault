@@ -2,19 +2,9 @@ import type { Question, QuizAttempt, QuizAttemptAnswer } from '@/types';
 import type { Flashcard } from '@/components/FlashcardDeck';
 import { selectAdaptiveQuestions } from '@/features/quiz/adaptive';
 
-/**
- * Flashcards are derived from the question bank, not authored separately.
- *
- * That is what lets a flashcard session feed the same weakness signal a quiz
- * does: each card *is* a question, so grading it produces a real
- * `QuizAttemptAnswer` against a real question id. A separate deck of cards with
- * no question ids would be a dead end — pleasant to use and invisible to the
- * adaptive algorithm.
- *
- * Card selection runs through `selectAdaptiveQuestions` for the same reason, so
- * the deck is already weighted toward weak and stale topics before the student
- * grades anything.
- */
+// flashcards are made from the question bank, not written separately.
+// that way grading a card counts as a real answer for that question and feeds
+// the adaptive quiz. cards are picked with selectAdaptiveQuestions too
 export function buildDeck(
   pool: Question[],
   attempts: QuizAttempt[],
@@ -25,8 +15,7 @@ export function buildDeck(
   return selected.map((question) => ({
     id: question.id,
     front: question.prompt,
-    // The explanation is the point of the reverse side. Showing only the correct
-    // option would confirm the answer without teaching the reasoning.
+    // show the explanation on the back, not just the answer
     back: question.explanation
       ? `${question.correctAnswer}\n\n${question.explanation}`
       : question.correctAnswer,
@@ -34,7 +23,7 @@ export function buildDeck(
   }));
 }
 
-/** XP per card graded 'known'. Below a quiz answer, because it is self-marked. */
+// xp per 'known' card, less than a quiz answer since it's self marked
 export const XP_PER_KNOWN_CARD = 4;
 
 export interface DeckGrade {
@@ -42,13 +31,8 @@ export interface DeckGrade {
   grade: 'known' | 'review';
 }
 
-/**
- * Turns a completed deck into a persistable attempt.
- *
- * Recorded as `quizType: 'Flashcards'` so it is never mistaken for a tested
- * score, while still contributing per-topic accuracy — a card the student swiped
- * "review again" is exactly the signal the next quiz should act on.
- */
+// turn a finished deck into an attempt. quizType 'Flashcards' so it isn't
+// counted as a test score, but 'review again' cards still lower accuracy
 export function gradesToAttempt(
   grades: DeckGrade[],
   pool: Question[],
@@ -63,8 +47,7 @@ export function gradesToAttempt(
     const known = grade.grade === 'known';
     return {
       questionId: grade.cardId,
-      // Self-report, stored in the same shape a real answer takes so the
-      // scoring code does not need a special case.
+      // same shape as a real answer so scoring needs no special case
       givenAnswer: known ? (question?.correctAnswer ?? 'known') : 'review',
       correct: known,
     };

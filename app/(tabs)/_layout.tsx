@@ -6,6 +6,7 @@ import { SyncStatusBanner } from '@/components';
 import { palette } from '@/constants/theme';
 import { tabIcons } from '@/navigation/tabIcons';
 
+/** Bottom tab bar (Home, Subjects, Practice, Progress, Profile) with the sync banner above it. */
 export default function TabsLayout() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';

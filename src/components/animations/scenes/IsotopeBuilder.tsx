@@ -29,6 +29,7 @@ const ISOTOPES = [
 
 const PROTONS = 6;
 
+/** Scene: builds isotopes by adding neutrons to the same nucleus. */
 export function IsotopeBuilder({ t, width, height, isDark, reduceMotion }: SceneProps) {
   const c = sceneColors(isDark);
 

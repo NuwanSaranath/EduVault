@@ -1,27 +1,17 @@
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { Directory, File, Paths } from 'expo-file-system';
 
-/**
- * Constrained-design policy #4: downscale before anything else sees the photo.
- *
- * A modern phone camera produces 3–6 MB per frame. Queueing that raw would mean
- * a Snap & Ask taken offline sits in the outbox as a multi-megabyte blob, then
- * tries to upload over whatever connection appears first. Shrinking at capture
- * time bounds the cost at its only cheap moment — before it is persisted, before
- * it is queued, before it is billed as mobile data.
- *
- * 1080px wide at 60% JPEG quality is the smallest size at which printed exam
- * text stays legible, which is the actual requirement here — not image fidelity.
- *
- * Note on APIs: SDK 54 replaced `manipulateAsync` with the chainable
- * `ImageManipulator.manipulate()` context, and `FileSystem.*Async` with the
- * `File`/`Directory` classes. Both legacy forms are deprecated, and the file
- * system one throws if called from the main export.
- */
+// Shrink photos straight after taking them.
+// Phone photos are 3-6 MB. If that sits in the outbox it'd be uploaded over
+// whatever connection comes first, maybe mobile data. So we resize before
+// saving or queueing it.
+// 1080px wide at 60% jpeg is about the smallest where exam text is still readable.
+// Note: sdk 54 changed the apis, manipulateAsync -> ImageManipulator.manipulate()
+// and FileSystem.*Async -> File/Directory classes. old ones are deprecated.
 export const MAX_CAPTURE_WIDTH = 1080;
 export const CAPTURE_QUALITY = 0.6;
 
-/** Directory name under Paths.document where queued captures live. */
+// folder in Paths.document for queued photos
 const CAPTURE_DIR = 'captures';
 
 export interface ProcessedImage {
@@ -29,11 +19,11 @@ export interface ProcessedImage {
   width: number;
   height: number;
   bytes: number;
-  /** Bytes saved versus the original, surfaced in the Settings data panel. */
+  // how much smaller it got, shown in settings
   savedBytes: number;
 }
 
-/** `size` throws on a missing file, so probe `exists` first. */
+// size throws if the file is missing so check exists first
 function sizeOf(uri: string): number {
   try {
     const file = new File(uri);
@@ -43,13 +33,8 @@ function sizeOf(uri: string): number {
   }
 }
 
-/**
- * Resizes and recompresses a captured photo.
- *
- * Only downscales — resizing to a width larger than the source would upsample,
- * inflating the file for no added legibility. Passing `height: null` lets the
- * native side preserve the aspect ratio rather than us computing it.
- */
+// resize + recompress. only makes it smaller, never bigger. height null
+// keeps the aspect ratio
 export async function processCapture(
   uri: string,
   originalWidth: number,
@@ -78,13 +63,8 @@ export async function processCapture(
   };
 }
 
-/**
- * Moves a processed capture into the app's document directory.
- *
- * Both the camera and `saveAsync` write to the cache directory, which Android
- * may clear at any time. A queued capture has to survive until it syncs, so
- * anything the outbox references must be copied somewhere durable first.
- */
+// copy to the documents folder. the camera saves to cache which android
+// can clear any time, and a queued photo has to last until it syncs
 export async function persistCapture(uri: string, id: string): Promise<string> {
   const dir = new Directory(Paths.document, CAPTURE_DIR);
   if (!dir.exists) {
@@ -96,17 +76,17 @@ export async function persistCapture(uri: string, id: string): Promise<string> {
   return target.uri;
 }
 
-/** Deletes a capture once its outbox row has been pushed. */
+// delete the photo after it's been pushed
 export async function discardCapture(uri: string): Promise<void> {
   try {
     const file = new File(uri);
     if (file.exists) file.delete();
   } catch {
-    // A missing file is the desired end state anyway.
+    // already gone, that's fine
   }
 }
 
-/** Total bytes held by not-yet-synced captures, for the Settings data panel. */
+// size of photos not synced yet, for settings
 export function pendingCaptureBytes(): number {
   try {
     const dir = new Directory(Paths.document, CAPTURE_DIR);

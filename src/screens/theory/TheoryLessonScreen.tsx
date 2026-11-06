@@ -99,6 +99,7 @@ export function TheoryLessonScreen() {
   const toggleBookmark = useBookmarkStore((s) => s.toggleBookmark);
   const isBookmarked = useBookmarkStore((s) => s.isBookmarked);
   const markChapterCompleted = useProgressStore((s) => s.markChapterCompleted);
+  const chapterDone = useProgressStore((s) => s.completedChapterIds.includes(chapterId));
 
   const readerTabs = useMemo(() => tabsForLesson(lesson), [lesson]);
 
@@ -132,6 +133,7 @@ export function TheoryLessonScreen() {
     );
   }
 
+  /** Plays or pauses the lesson audio. */
   const toggleAudio = () => {
     if (!lesson.audioUrl) return;
     // The player already holds the source, so this is only play/pause — the
@@ -481,13 +483,28 @@ export function TheoryLessonScreen() {
               ))
             ))}
 
+          {/* Completion is one-way: sync merges completed chapters as a set
+              union, so an "undo" here would be re-applied by the next sync. */}
           <Pressable
             onPress={() => markChapterCompleted(chapter.id)}
-            className="mt-5 flex-row items-center justify-center rounded-2xl bg-green-50 py-3 dark:bg-green-900/30"
+            disabled={chapterDone}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: chapterDone, checked: chapterDone }}
+            className={`mt-5 flex-row items-center justify-center rounded-2xl py-3 ${
+              chapterDone ? 'bg-green-600' : 'bg-green-50 active:bg-green-100 dark:bg-green-900/30'
+            }`}
           >
-            <Ionicons name="checkmark-circle-outline" size={18} color={palette.success} />
-            <Text className="ml-2 text-sm font-semibold text-green-700 dark:text-green-300">
-              Mark Chapter as Complete
+            <Ionicons
+              name={chapterDone ? 'checkmark-circle' : 'checkmark-circle-outline'}
+              size={18}
+              color={chapterDone ? '#fff' : palette.success}
+            />
+            <Text
+              className={`ml-2 text-sm font-semibold ${
+                chapterDone ? 'text-white' : 'text-green-700 dark:text-green-300'
+              }`}
+            >
+              {chapterDone ? 'Chapter Completed' : 'Mark Chapter as Complete'}
             </Text>
           </Pressable>
         </Card>

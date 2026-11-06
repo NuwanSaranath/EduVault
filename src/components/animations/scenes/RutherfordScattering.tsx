@@ -115,6 +115,7 @@ function distanceToScreen(b: number, angleDeg: number, radius: number): number {
   return -dot + Math.sqrt(disc);
 }
 
+/** Scene: Rutherford gold-foil practical — α-particle scattering, θ = 2·arctan(k/b). */
 export function RutherfordScattering({
   t,
   width,

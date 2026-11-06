@@ -6,6 +6,7 @@ import { palette } from '@/constants/theme';
 import { useQuizStore } from '@/store/quizStore';
 import { formatDuration } from '@/utils/format';
 
+/** Quiz result: score, XP earned and any badges unlocked. */
 export function QuizResultScreen() {
   const { lastResult, questions, answers, resetSession } = useQuizStore();
 
@@ -21,6 +22,7 @@ export function QuizResultScreen() {
   const wrongCount = totalQuestions - correctCount;
   const percent = Math.round((correctCount / totalQuestions) * 100);
 
+  /** Clears the session and returns to the Practice tab. */
   const finish = () => {
     resetSession();
     router.replace('/(tabs)/practice');

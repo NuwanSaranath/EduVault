@@ -7,6 +7,7 @@ interface GradientHeaderProps extends ViewProps {
   colors?: [string, string];
 }
 
+// purple gradient header, below the status bar
 export function GradientHeader({ children, colors = gradients.primary, className, ...rest }: GradientHeaderProps) {
   const insets = useSafeAreaInsets();
 

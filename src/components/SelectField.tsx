@@ -13,6 +13,7 @@ interface SelectFieldProps {
   icon?: keyof typeof Ionicons.glyphMap;
 }
 
+// dropdown that opens a bottom sheet
 export function SelectField({ label, placeholder = 'Select', value, options, onChange, error, icon }: SelectFieldProps) {
   const [open, setOpen] = useState(false);
 

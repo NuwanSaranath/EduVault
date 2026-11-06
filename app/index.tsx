@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import { SplashScreen } from '@/screens/SplashScreen';
 
+/** Entry route: shows the splash, then redirects to onboarding, login or the tabs. */
 export default function BootScreen() {
   const isOnboarded = useAuthStore((s) => s.isOnboarded);
   const user = useAuthStore((s) => s.user);

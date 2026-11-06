@@ -1,22 +1,17 @@
 import type { PastPaperResult, QuizAttempt } from '@/types';
-import { getDb } from '../index';
+import { getDb, runInTransaction } from '../index';
 import { enqueue } from './outboxRepo';
 
 interface Row {
   payload: string;
 }
 
-/**
- * Persists a finished quiz attempt and queues it for upload atomically.
- *
- * Both statements share one transaction: if the outbox insert fails the local
- * row rolls back too, so the app can never hold a result that will never sync.
- * Attempts are append-only with a client-generated id, which is why they need
- * no conflict strategy — see docs/04-offline-sync.md.
- */
+// save the quiz attempt and add it to the outbox in one transaction, so we
+// never have a result saved that won't sync. attempts are append only with an
+// id made on the phone, so no conflict handling needed
 export async function saveAttempt(attempt: QuizAttempt): Promise<void> {
   const db = await getDb();
-  await db.withTransactionAsync(async () => {
+  await runInTransaction(db, async () => {
     await db.runAsync(
       `INSERT OR REPLACE INTO quiz_attempts (id, subject_id, payload, taken_at, synced)
          VALUES (?, ?, ?, ?, 0)`,
@@ -39,7 +34,7 @@ export async function markAttemptSynced(attemptId: string): Promise<void> {
   await db.runAsync('UPDATE quiz_attempts SET synced = 1 WHERE id = ?', attemptId);
 }
 
-/** Whole attempt history, newest first. */
+// newest first
 export async function getAttempts(subjectId?: string): Promise<QuizAttempt[]> {
   const db = await getDb();
   const rows = subjectId
@@ -51,12 +46,8 @@ export async function getAttempts(subjectId?: string): Promise<QuizAttempt[]> {
   return rows.map((r) => JSON.parse(r.payload) as QuizAttempt);
 }
 
-/**
- * Bounded history for the adaptive algorithm.
- *
- * Scoring only needs recent behaviour, and an unbounded read would grow the
- * pre-quiz latency forever on a device used for a full academic year.
- */
+// only the last few, the adaptive quiz doesn't need the whole year and
+// reading everything would get slower over time
 export async function getRecentAttempts(limit = 50): Promise<QuizAttempt[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<Row>(
@@ -66,9 +57,10 @@ export async function getRecentAttempts(limit = 50): Promise<QuizAttempt[]> {
   return rows.map((r) => JSON.parse(r.payload) as QuizAttempt);
 }
 
+// same as saveAttempt but for past papers
 export async function savePaperResult(result: PastPaperResult): Promise<void> {
   const db = await getDb();
-  await db.withTransactionAsync(async () => {
+  await runInTransaction(db, async () => {
     await db.runAsync(
       `INSERT OR REPLACE INTO paper_results (id, past_paper_id, payload, taken_at, synced)
          VALUES (?, ?, ?, ?, 0)`,
@@ -91,6 +83,7 @@ export async function markPaperResultSynced(resultId: string): Promise<void> {
   await db.runAsync('UPDATE paper_results SET synced = 1 WHERE id = ?', resultId);
 }
 
+// newest first
 export async function getPaperResults(): Promise<PastPaperResult[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<Row>(
@@ -99,7 +92,7 @@ export async function getPaperResults(): Promise<PastPaperResult[]> {
   return rows.map((r) => JSON.parse(r.payload) as PastPaperResult);
 }
 
-/** Drives the unsynced figure shown in Settings. */
+// for the unsynced count in settings
 export async function unsyncedCounts(): Promise<{ attempts: number; results: number }> {
   const db = await getDb();
   const a = await db.getFirstAsync<{ n: number }>(

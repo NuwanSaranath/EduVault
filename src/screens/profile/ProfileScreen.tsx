@@ -14,6 +14,7 @@ const settingsLinks = [
   { key: 'planner', label: 'Study Planner', icon: 'calendar-outline' as const, route: '/planner' as const },
 ];
 
+/** Profile tab: account, level/XP, achievements and links to settings. */
 export function ProfileScreen() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
@@ -21,6 +22,7 @@ export function ProfileScreen() {
 
   if (!user) return null;
 
+  /** Signs out and returns to login. */
   const handleLogout = () => {
     logout();
     router.replace('/(auth)/login');

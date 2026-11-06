@@ -7,12 +7,14 @@ import { palette } from '@/constants/theme';
 import { requestPasswordReset } from '@/services/auth';
 import { isValidEmail } from '@/utils/validators';
 
+/** Form that sends a password-reset email. */
 export function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
 
+  /** Validates the email and requests the reset email. */
   const onSubmit = async () => {
     if (!isValidEmail(email)) {
       setError('Enter a valid email address');

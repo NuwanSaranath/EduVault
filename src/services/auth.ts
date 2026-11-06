@@ -24,16 +24,10 @@ export interface LoginPayload {
   password: string;
 }
 
-/**
- * Authentication against Firebase Auth, with the profile document in Firestore.
- *
- * Auth is the one flow that genuinely requires the network — there is no honest
- * way to verify a password offline, and pretending otherwise would mean trusting
- * a locally cached credential. So instead of faking it, the session itself is
- * persisted (see `getReactNativePersistence` in firebase.ts): a student who
- * logged in once stays logged in offline indefinitely, and only a *new* login on
- * a *new* device needs a connection.
- */
+// Firebase login/register, profile saved in firestore.
+// Login needs internet, you can't check a password offline. But the session is
+// saved (getReactNativePersistence in firebase.ts) so once logged in you stay
+// logged in offline. Only a new login needs a connection.
 function ensureConfigured(): void {
   if (!isFirebaseConfigured()) {
     throw new ApiError(
@@ -43,7 +37,7 @@ function ensureConfigured(): void {
   }
 }
 
-/** Maps Firebase error codes to messages a student can act on. */
+// firebase error codes -> messages the student understands
 function toApiError(error: unknown): ApiError {
   const code = (error as { code?: string })?.code ?? '';
   switch (code) {
@@ -69,6 +63,7 @@ function toApiError(error: unknown): ApiError {
   }
 }
 
+// create the firebase user and their profile doc
 export async function register(payload: RegisterPayload): Promise<User> {
   ensureConfigured();
 
@@ -90,8 +85,8 @@ export async function register(payload: RegisterPayload): Promise<User> {
       createdAt: new Date().toISOString(),
     };
 
-    // Profile lives under users/{uid} so one security rule covers everything the
-    // student owns: `allow read, write: if request.auth.uid == uid`.
+    // profile is under users/{uid} so one rule covers all their data:
+    // allow read, write: if request.auth.uid == uid
     const { id, ...profile } = user;
     await setDoc(doc(getFirestoreDb(), 'users', id), profile);
 
@@ -101,6 +96,7 @@ export async function register(payload: RegisterPayload): Promise<User> {
   }
 }
 
+// sign in and load the profile doc
 export async function login(payload: LoginPayload): Promise<User> {
   if (!payload.email || !payload.password) {
     throw new ApiError('Email and password are required', 400);
@@ -138,20 +134,14 @@ export async function requestPasswordReset(email: string): Promise<{ sent: boole
   }
 }
 
-/**
- * Signs out of Firebase but leaves local SQLite data in place.
- *
- * Wiping the database here would discard any unsynced outbox rows, so a student
- * who logs out on a train would silently lose the quiz they just took. The data
- * stays and flushes after the next successful login.
- */
+// sign out of firebase but keep the sqlite data. if we wiped it, quizzes
+// that haven't synced yet would be lost. they sync after the next login
 export async function logout(): Promise<void> {
   if (!isFirebaseConfigured()) return;
   try {
     await signOut(getFirebaseAuth());
   } catch {
-    // Already signed out, or offline. Either way the local session is cleared
-    // by the store, which is what the UI reacts to.
+    // already signed out or offline, the store clears the session anyway
   }
 }
 

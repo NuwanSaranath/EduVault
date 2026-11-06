@@ -16,6 +16,7 @@ const toneStyles: Record<NonNullable<BadgeProps['tone']>, { bg: string; text: st
   neutral: { bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-700 dark:text-gray-300', iconColor: palette.gray[600] },
 };
 
+// small coloured label with optional icon
 export function Badge({ icon, label, tone = 'primary' }: BadgeProps) {
   const { bg, text, iconColor } = toneStyles[tone];
 

@@ -12,17 +12,9 @@ import {
 import { getCursor, setCursor } from '@/db/repositories/progressRepo';
 import { enforceCacheBudget } from '@/db/cachePolicy';
 
-/**
- * The pull half of sync: refreshes cached syllabus content from Firestore.
- *
- * Incremental by design. Every content document carries an `updatedAt`, and the
- * last value seen per collection is stored as a cursor in `sync_meta`, so a
- * refresh transfers only what changed. On a metered connection this is the
- * difference between a few kilobytes and re-downloading every lesson.
- *
- * Content is pulled, never pushed — students do not author syllabus data, so
- * this direction needs no conflict resolution at all.
- */
+// Pull side of sync. Downloads syllabus content from firestore.
+// Only gets what changed: we keep the last updatedAt per collection in
+// sync_meta. Students never edit content so no conflicts here.
 
 export interface PullReport {
   subjects: number;
@@ -42,13 +34,8 @@ const EMPTY_REPORT: PullReport = {
   evicted: 0,
 };
 
-/**
- * Reads one collection, filtered to documents newer than our cursor.
- *
- * Returns the rows plus the highest `updatedAt` seen, which becomes the next
- * cursor — advanced only after the local write succeeds, so a crash mid-write
- * re-pulls rather than silently skipping.
- */
+// get docs newer than the cursor. returns them + the highest updatedAt,
+// which is saved after the local write so a crash just pulls again
 async function pullCollection<T>(
   name: string,
 ): Promise<{ items: T[]; nextCursor: string | null }> {
@@ -67,7 +54,7 @@ async function pullCollection<T>(
     if (data.updatedAt && (!nextCursor || data.updatedAt > nextCursor)) {
       nextCursor = data.updatedAt;
     }
-    // Strip the sync field so it never leaks into the domain object.
+    // don't keep updatedAt on the object itself
     const { updatedAt: _updatedAt, ...rest } = data;
     items.push({ id: docSnap.id, ...rest } as T);
   });
@@ -117,8 +104,7 @@ export async function pullContent(): Promise<PullReport> {
   }
   if (papers.nextCursor) await setCursor('pastPapers', papers.nextCursor);
 
-  // A pull is the only thing that grows the cache, so this is the natural place
-  // to enforce the budget rather than polling for it.
+  // only a pull adds to the cache, so check the size limit here
   report.evicted = (await enforceCacheBudget()).length;
 
   return report;

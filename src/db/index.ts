@@ -2,16 +2,12 @@ import * as SQLite from 'expo-sqlite';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { DATABASE_NAME, migrate } from './schema';
 
-/**
- * One connection for the whole app.
- *
- * The sync engine runs off a NetInfo listener rather than a React render, so
- * it cannot reach a connection held in context. A module-level singleton lets
- * screens and the engine share the same handle — and WAL mode (set in
- * `migrate`) keeps a background drain from blocking a screen's read.
- */
+// one db connection shared by everything. the sync engine runs outside
+// react so it can't get it from context. WAL mode (in migrate) means a
+// background sync doesn't block a screen reading
 let dbPromise: Promise<SQLiteDatabase> | null = null;
 
+// opens + migrates the db the first time
 export function getDb(): Promise<SQLiteDatabase> {
   if (!dbPromise) {
     dbPromise = SQLite.openDatabaseAsync(DATABASE_NAME).then(async (db) => {
@@ -22,12 +18,35 @@ export function getDb(): Promise<SQLiteDatabase> {
   return dbPromise;
 }
 
-/** Called once from the root layout, before the first screen renders. */
+// last transaction in the queue, the next one waits for it
+let transactionQueue: Promise<unknown> = Promise.resolve();
+
+// run transactions one at a time.
+// withTransactionAsync breaks if two run at once on the same connection
+// ("cannot start a transaction within a transaction"). store writes don't
+// await so this happens a lot, hence the queue.
+// if one fails it rolls back and throws, but the next ones still run
+export function runInTransaction<T>(
+  db: SQLiteDatabase,
+  task: () => Promise<T>,
+): Promise<T> {
+  const run = transactionQueue.then(async () => {
+    let result!: T;
+    await db.withTransactionAsync(async () => {
+      result = await task();
+    });
+    return result;
+  });
+  transactionQueue = run.catch(() => undefined);
+  return run;
+}
+
+// called once before the first screen shows
 export async function initDatabase(): Promise<void> {
   await getDb();
 }
 
-/** Test/debug helper: drops every row but keeps the schema. */
+// for tests/debug: delete all rows, keep the tables
 export async function resetDatabase(): Promise<void> {
   const db = await getDb();
   await db.execAsync(`

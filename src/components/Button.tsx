@@ -11,20 +11,14 @@ interface ButtonProps extends Omit<PressableProps, 'children'> {
   size?: Size;
   loading?: boolean;
   icon?: React.ReactNode;
-  /** Trailing is the right choice for forward arrows ("Next →", "Sign In →"). */
+  // use right for arrows like "Next →"
   iconPosition?: 'left' | 'right';
   fullWidth?: boolean;
 }
 
-/**
- * Padding is carried twice on purpose: as Tailwind classes for the variants
- * rendered by a core RN component, and as numbers for the gradient variant.
- *
- * NativeWind only maps `className` onto components it knows about. LinearGradient
- * is a third-party component, so layout classes put on it are silently dropped and
- * the explicit `style` wins — which left the icon and label stacked in a column
- * instead of centred in a row. The gradient therefore gets real style objects.
- */
+// padding is here twice: tailwind classes for the normal buttons and numbers
+// for the gradient one. nativewind ignores className on LinearGradient (not a
+// core component) so the icon and text ended up stacked instead of in a row
 const sizeStyles: Record<Size, { padY: string; text: string; padV: number; padH: number }> = {
   sm: { padY: 'py-2 px-4', text: 'text-sm', padV: 8, padH: 16 },
   md: { padY: 'py-3.5 px-5', text: 'text-base', padV: 14, padH: 20 },
@@ -48,6 +42,7 @@ export function Button({
   const widthClass = fullWidth ? 'w-full' : 'self-start';
   const spacing = icon ? (iconPosition === 'right' ? 'mr-2' : 'ml-2') : '';
 
+  // label + icon, icon on left or right
   const content = (textColorClass: string) =>
     iconPosition === 'right' ? (
       <>

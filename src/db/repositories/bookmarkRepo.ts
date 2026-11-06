@@ -1,15 +1,12 @@
-import { getDb } from '../index';
+import { getDb, runInTransaction } from '../index';
 import { enqueue } from './outboxRepo';
 
-/**
- * Bookmarks double as cache pins: enforceCacheBudget refuses to evict a
- * bookmarked lesson, so anything a student deliberately saved stays readable
- * offline no matter how much other content gets pulled in afterwards.
- */
+// bookmarked lessons are also protected from the cache cleanup, so a saved
+// lesson is always there offline
 export async function addBookmark(lessonId: string): Promise<void> {
   const db = await getDb();
   const createdAt = new Date().toISOString();
-  await db.withTransactionAsync(async () => {
+  await runInTransaction(db, async () => {
     await db.runAsync(
       'INSERT OR REPLACE INTO bookmarks (lesson_id, created_at, synced) VALUES (?, ?, 0)',
       lessonId,
@@ -26,7 +23,7 @@ export async function addBookmark(lessonId: string): Promise<void> {
 
 export async function removeBookmark(lessonId: string): Promise<void> {
   const db = await getDb();
-  await db.withTransactionAsync(async () => {
+  await runInTransaction(db, async () => {
     await db.runAsync('DELETE FROM bookmarks WHERE lesson_id = ?', lessonId);
     await enqueue(db, {
       entity: 'bookmark',

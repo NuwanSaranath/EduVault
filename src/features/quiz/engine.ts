@@ -13,6 +13,7 @@ export function isAnswerCorrect(question: Question, givenAnswer: string): boolea
   return question.correctAnswer.trim().toLowerCase() === givenAnswer.trim().toLowerCase();
 }
 
+// marks all answers, returns results + correct count
 export function scoreAnswers(
   questions: Question[],
   answers: Record<string, string>,

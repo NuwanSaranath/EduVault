@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getDb } from '../index';
 
-/** Collections the sync engine knows how to push. */
+// what the sync engine can push
 export type OutboxEntity =
   | 'quizAttempt'
   | 'paperResult'
@@ -30,16 +30,12 @@ export interface EnqueueInput {
   op: OutboxOp;
   entityId: string;
   payload: unknown;
-  /** Set for mutations carrying an image, so `syncPlan` can defer them. */
+  // set if there's a photo, so syncPlan can hold it for wifi
   mediaUri?: string;
 }
 
-/**
- * Appends a mutation to the outbox.
- *
- * Takes an explicit `db` so callers can enlist it in the same transaction as
- * their local write — see `attemptRepo.saveAttempt`.
- */
+// add a change to the outbox. takes db so it can be in the same
+// transaction as the local write (see attemptRepo.saveAttempt)
 export async function enqueue(db: SQLiteDatabase, input: EnqueueInput): Promise<void> {
   await db.runAsync(
     `INSERT INTO outbox (entity, op, entity_id, payload, created_at, needs_media, media_uri)
@@ -54,12 +50,8 @@ export async function enqueue(db: SQLiteDatabase, input: EnqueueInput): Promise<
   );
 }
 
-/**
- * Oldest-first batch of still-viable mutations.
- *
- * `includeMedia: false` skips image-bearing rows so a metered connection can
- * still flush text while photos wait for Wi-Fi.
- */
+// oldest first. includeMedia false skips photo rows so text can still sync
+// on mobile data
 export async function nextBatch(
   maxAttempts: number,
   limit: number,
@@ -77,6 +69,7 @@ export async function nextBatch(
   );
 }
 
+// pushed ok, remove from outbox
 export async function markSucceeded(id: number): Promise<void> {
   const db = await getDb();
   await db.runAsync('DELETE FROM outbox WHERE id = ?', id);
@@ -91,7 +84,7 @@ export async function markFailed(id: number, error: string): Promise<void> {
   );
 }
 
-/** Count shown in the offline banner. Excludes rows that exhausted retries. */
+// for the banner, doesn't count dead letters
 export async function pendingCount(maxAttempts: number): Promise<number> {
   const db = await getDb();
   const row = await db.getFirstAsync<{ n: number }>(
@@ -101,7 +94,7 @@ export async function pendingCount(maxAttempts: number): Promise<number> {
   return row?.n ?? 0;
 }
 
-/** Rows that gave up — surfaced in Settings so they are not silently lost. */
+// rows that gave up, shown in settings so they aren't lost
 export async function deadLetters(maxAttempts: number): Promise<OutboxRow[]> {
   const db = await getDb();
   return db.getAllAsync<OutboxRow>(
@@ -110,7 +103,6 @@ export async function deadLetters(maxAttempts: number): Promise<OutboxRow[]> {
   );
 }
 
-/** Resets the attempt counter so dead letters get another chance. */
 export async function retryDeadLetters(): Promise<void> {
   const db = await getDb();
   await db.runAsync('UPDATE outbox SET attempts = 0, last_error = NULL');

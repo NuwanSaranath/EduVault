@@ -52,6 +52,7 @@ const LINE_WINDOWS: Array<[start: number, end: number]> = [
   [19.6, 21.4],
 ];
 
+/** Scene: electron transitions producing hydrogen's line spectrum (Eₙ = −1312/n²). */
 export function HydrogenSpectrum({ t, width, height, isDark, reduceMotion }: SceneProps) {
   const c = sceneColors(isDark);
 

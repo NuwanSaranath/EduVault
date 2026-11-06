@@ -1,38 +1,28 @@
-/**
- * A compact periodic table, laid out for drawing.
- *
- * Shared by the table-building and periodic-trend scenes so both animations
- * place an element in exactly the same cell. If they each carried their own
- * coordinates, a student comparing the two would see Na move between them.
- *
- * Covers Z = 1–36 (through Kr), which is enough to show s, p and d blocks in
- * their real positions; the f-block is drawn as a detached strip because that is
- * how it appears in a printed table and the *reason* it is detached is part of
- * what the building animation teaches.
- */
+// Small periodic table with positions for drawing.
+// Used by the table building and trends scenes so an element is in the same
+// cell in both.
+// Z = 1-36 (up to Kr), enough to show s, p and d blocks. f-block is drawn
+// separate like in a printed table, and why it's separate is part of the lesson.
 
 export type Block = 's' | 'p' | 'd' | 'f';
 
 export interface Element {
   z: number;
   symbol: string;
-  /** 1–18, as printed on the table. */
+  // 1-18 like the printed table
   group: number;
   period: number;
   block: Block;
 }
 
-/**
- * Groups are the printed 1–18 numbering, so group 1 and group 18 sit at the two
- * edges and the d-block occupies 3–12. That is what produces the table's
- * characteristic gap in periods 2 and 3.
- */
+// groups use the 1-18 numbering so d-block is 3-12, which gives the gap in
+// periods 2 and 3
 export const ELEMENTS: Element[] = [
-  // Period 1
+  // period 1
   { z: 1, symbol: 'H', group: 1, period: 1, block: 's' },
   { z: 2, symbol: 'He', group: 18, period: 1, block: 's' },
 
-  // Period 2
+  // period 2
   { z: 3, symbol: 'Li', group: 1, period: 2, block: 's' },
   { z: 4, symbol: 'Be', group: 2, period: 2, block: 's' },
   { z: 5, symbol: 'B', group: 13, period: 2, block: 'p' },
@@ -42,7 +32,7 @@ export const ELEMENTS: Element[] = [
   { z: 9, symbol: 'F', group: 17, period: 2, block: 'p' },
   { z: 10, symbol: 'Ne', group: 18, period: 2, block: 'p' },
 
-  // Period 3
+  // period 3
   { z: 11, symbol: 'Na', group: 1, period: 3, block: 's' },
   { z: 12, symbol: 'Mg', group: 2, period: 3, block: 's' },
   { z: 13, symbol: 'Al', group: 13, period: 3, block: 'p' },
@@ -52,7 +42,7 @@ export const ELEMENTS: Element[] = [
   { z: 17, symbol: 'Cl', group: 17, period: 3, block: 'p' },
   { z: 18, symbol: 'Ar', group: 18, period: 3, block: 'p' },
 
-  // Period 4 — the first period with a d-block, which is the point
+  // period 4, first one with a d-block
   { z: 19, symbol: 'K', group: 1, period: 4, block: 's' },
   { z: 20, symbol: 'Ca', group: 2, period: 4, block: 's' },
   { z: 21, symbol: 'Sc', group: 3, period: 4, block: 'd' },
@@ -76,7 +66,7 @@ export const ELEMENTS: Element[] = [
 export const MAX_GROUP = 18;
 export const MAX_PERIOD = 4;
 
-/** Order in which blocks are revealed — the Aufbau order, not left to right. */
+// order the blocks appear in (aufbau order, not left to right)
 export const BLOCK_ORDER: Block[] = ['s', 'p', 'd', 'f'];
 
 export const BLOCK_LABEL_SI: Record<Block, string> = {
@@ -86,15 +76,9 @@ export const BLOCK_LABEL_SI: Record<Block, string> = {
   f: 'f ගොනුව',
 };
 
-/**
- * Relative atomic radius, 0..1, normalised across the elements drawn.
- *
- * Real values in pm, scaled at draw time. Two facts have to survive the
- * normalisation or the trend animation teaches the wrong thing: radius *shrinks*
- * left → right across a period (increasing Z_eff pulls the same shell in), and
- * *grows* top → bottom down a group (a whole new shell). Noble gases are
- * deliberately included so the period-end drop is visible.
- */
+// atomic radius in pm, scaled when drawing. has to show radius getting
+// smaller across a period and bigger down a group. noble gases included so the
+// drop at the end of the period shows
 export const ATOMIC_RADIUS_PM: Record<number, number> = {
   1: 53, 2: 31,
   3: 167, 4: 112, 5: 87, 6: 67, 7: 56, 8: 48, 9: 42, 10: 38,
@@ -104,7 +88,7 @@ export const ATOMIC_RADIUS_PM: Record<number, number> = {
   35: 94, 36: 88,
 };
 
-/** First ionisation energy in kJ mol⁻¹. Trend is the inverse of radius. */
+// first ionisation energy kJ/mol, opposite trend to radius
 export const FIRST_IONISATION_KJ: Record<number, number> = {
   1: 1312, 2: 2372,
   3: 520, 4: 899, 5: 801, 6: 1086, 7: 1402, 8: 1314, 9: 1681, 10: 2081,
@@ -114,7 +98,7 @@ export const FIRST_IONISATION_KJ: Record<number, number> = {
   35: 1140, 36: 1351,
 };
 
-/** Pauling electronegativity. Noble gases omitted — they have no accepted value. */
+// pauling electronegativity, no noble gases (no accepted value)
 export const ELECTRONEGATIVITY: Record<number, number> = {
   1: 2.2,
   3: 0.98, 4: 1.57, 5: 2.04, 6: 2.55, 7: 3.04, 8: 3.44, 9: 3.98,
@@ -124,13 +108,8 @@ export const ELECTRONEGATIVITY: Record<number, number> = {
   33: 2.18, 34: 2.55, 35: 2.96,
 };
 
-/**
- * Electron affinity in kJ mol⁻¹ (magnitude of energy released).
- *
- * Only the elements with a clear, positive value are listed. Group 2 and the
- * noble gases are absent on purpose: their affinities are near zero or
- * endothermic, and the *gaps* in the trend are themselves examinable.
- */
+// electron affinity kJ/mol. group 2 and noble gases left out on purpose,
+// they're near 0 / endothermic and the gaps come up in exams
 export const ELECTRON_AFFINITY_KJ: Record<number, number> = {
   1: 73,
   3: 60, 5: 27, 6: 122, 8: 141, 9: 328,
@@ -138,7 +117,7 @@ export const ELECTRON_AFFINITY_KJ: Record<number, number> = {
   19: 48, 31: 29, 32: 119, 33: 78, 34: 195, 35: 325,
 };
 
-/** Elements that break the simple Aufbau order, with the reason to display. */
+// elements that don't follow normal aufbau order + why
 export const AUFBAU_ANOMALIES: Array<{
   symbol: string;
   expected: string;

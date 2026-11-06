@@ -6,15 +6,8 @@ import { plannerSeed } from '@/constants/data/planner';
 import { cancelReminder, scheduleReminder } from '@/features/planner/reminders';
 import { getEvents, softDeleteEvent, upsertEvent } from '@/db/repositories/plannerRepo';
 
-/**
- * Study planner state.
- *
- * Events live in SQLite and sync under last-write-wins. `persist` is kept for one
- * narrow purpose — `notificationIds` — because those ids belong to the OS
- * scheduler on *this* device and are meaningless on any other. Syncing them would
- * push a local handle to a phone that cannot use it, so they stay in
- * AsyncStorage while the events themselves go to the database.
- */
+// planner. events are in sqlite and sync. only notificationIds use persist,
+// they're ids from this phone's notification scheduler so no point syncing them
 interface PlannerState {
   events: PlannerEvent[];
   notificationIds: Record<string, string>;
@@ -41,8 +34,7 @@ export const usePlannerStore = create<PlannerState>()(
 
       removeEvent: (eventId) => {
         set((state) => ({ events: state.events.filter((e) => e.id !== eventId) }));
-        // Soft delete: the tombstone must outlive the local row long enough to
-        // be pushed, or a delete made offline would never reach the server.
+        // soft delete so the delete still gets pushed if we're offline
         void softDeleteEvent(eventId);
       },
 
@@ -81,19 +73,14 @@ export const usePlannerStore = create<PlannerState>()(
     {
       name: 'eduvault-planner',
       storage: createJSONStorage(() => AsyncStorage),
-      // Events deliberately excluded — SQLite owns them.
+      // events not included, they're in sqlite
       partialize: (state) => ({ notificationIds: state.notificationIds }),
     },
   ),
 );
 
-/**
- * Loads planner events from SQLite, seeding a first-run schedule if empty.
- *
- * The seed is written through the repository rather than just placed in state, so
- * the starter timetable is a real row set that syncs like any other — otherwise
- * it would silently vanish on a second device.
- */
+// load events from sqlite, add a starter timetable if empty. the starter
+// one is saved as real rows so it syncs too
 export async function hydratePlannerFromDb(): Promise<void> {
   let events = await getEvents();
 

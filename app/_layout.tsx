@@ -69,6 +69,7 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   );
 }
 
+/** Root layout: runs app bootstrap, then renders the app-wide providers and the root Stack navigator. */
 export default function RootLayout() {
   const hasHydrated = useAuthStore((s) => s.hasHydrated);
   const { colorScheme } = useColorScheme();
@@ -115,18 +116,33 @@ export default function RootLayout() {
     );
   }
 
+  // The app shell. Every screen renders inside these providers:
+  //   GestureHandlerRootView — enables swipes/drags app-wide (flashcards, back-swipe).
+  //   SafeAreaProvider       — reports notch/status-bar insets so screens can avoid them.
+  //   StatusBar              — light icons in dark mode, dark icons in light mode.
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+        {/* Root stack navigator. Screens push on top and pop on Back. The default
+            header is hidden because every screen draws its own. */}
         <Stack screenOptions={{ headerShown: false }}>
+          {/* Top-level areas: boot redirect, first-run intro, sign-in, and the
+              five-tab app. The tabs are a single entry in this stack, so task
+              screens below are pushed over them. */}
           <Stack.Screen name="index" />
           <Stack.Screen name="(onboarding)" />
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(tabs)" />
+
+          {/* Browsing screens slide in from the right, the normal "go deeper" motion. */}
           <Stack.Screen name="subject/[id]" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="theory/[chapterId]" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="past-papers/index" options={{ animation: 'slide_from_right' }} />
+
+          {/* Exam and quiz sessions fade in to mark entering "test mode", and the
+              back-swipe is disabled so an accidental swipe cannot abandon an
+              attempt halfway through. Results fade too, as the exit from that mode. */}
           <Stack.Screen
             name="past-papers/[id]/exam"
             options={{ animation: 'fade', gestureEnabled: false }}
@@ -138,6 +154,8 @@ export default function RootLayout() {
             options={{ animation: 'fade', gestureEnabled: false }}
           />
           <Stack.Screen name="quiz/result" options={{ animation: 'fade' }} />
+
+          {/* Tools. The AI Tutor slides up from the bottom like a chat panel. */}
           <Stack.Screen name="planner/index" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="ai-tutor/index" options={{ animation: 'slide_from_bottom' }} />
           <Stack.Screen name="profile/settings" options={{ animation: 'slide_from_right' }} />

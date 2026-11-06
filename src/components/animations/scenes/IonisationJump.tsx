@@ -66,6 +66,7 @@ const CASES: Case[] = [
 const LOG_MIN = Math.log10(300);
 const LOG_MAX = Math.log10(30000);
 
+/** Scene: successive ionisation energies and the big jump between shells. */
 export function IonisationJump({ t, width, height, isDark, reduceMotion }: SceneProps) {
   const c = sceneColors(isDark);
 
@@ -89,6 +90,7 @@ export function IonisationJump({ t, width, height, isDark, reduceMotion }: Scene
   /** The case currently on screen. */
   const active = CASES.reduce<Case | null>((acc, k) => (time >= k.at ? k : acc), null);
 
+  /** Maps an energy value to a y position on the chart. */
   const yOfEnergy = (kj: number): number => {
     const frac = (Math.log10(kj) - LOG_MIN) / (LOG_MAX - LOG_MIN);
     return geo.baseline - frac * (geo.baseline - geo.plotTop);

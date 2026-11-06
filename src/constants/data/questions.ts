@@ -88,7 +88,7 @@ export const questions: Question[] = [
     difficulty: 'Medium',
   },
 
-  // Combined Mathematics
+  // Combined Maths
   {
     id: 'q-combined-maths-1',
     subjectId: 'combined-maths',

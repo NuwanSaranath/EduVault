@@ -6,6 +6,7 @@ interface FilterChipProps {
   onPress?: () => void;
 }
 
+// filter chip, highlighted when active
 export function FilterChip({ label, active, onPress }: FilterChipProps) {
   return (
     <Pressable

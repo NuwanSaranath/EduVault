@@ -121,6 +121,7 @@ export const subjects: Subject[] = [
   },
 ];
 
+// subjects in an A/L stream
 export function subjectsForStream(stream: string): Subject[] {
   return subjects.filter((subject) => subject.streams.includes(stream as never));
 }

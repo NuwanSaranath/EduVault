@@ -7,13 +7,8 @@ import {
   getRecommendedLessons,
 } from '@/db/repositories/contentRepo';
 
-/**
- * Theory content read from the SQLite cache.
- *
- * `fetchLesson` is the one read with a side effect: it stamps the lesson's
- * `last_read_at`, which is what gives the LRU cache budget something to rank by.
- * Reading a lesson is therefore also the act of protecting it from eviction.
- */
+// theory content from sqlite. fetchLesson also updates last_read_at, which
+// is what the cache cleanup uses, so reading a lesson keeps it from being deleted
 export async function fetchChapters(subjectId: string): Promise<Chapter[]> {
   return getChaptersBySubject(subjectId);
 }
@@ -26,17 +21,13 @@ export async function fetchLessons(chapterId: string): Promise<Lesson[]> {
   return getLessonsByChapter(chapterId);
 }
 
+// also marks it as recently read
 export async function fetchLesson(lessonId: string): Promise<Lesson | undefined> {
   return (await getLesson(lessonId)) ?? undefined;
 }
 
-/**
- * Home-screen suggestions.
- *
- * Takes the completed chapter ids from the caller rather than reading progress
- * itself — progress lives in a store, content lives in the database, and having
- * a content service reach into store state would couple the two layers.
- */
+// suggestions for home. completed ids are passed in so this service
+// doesn't need to read the progress store
 export async function fetchRecommendedLessons(
   completedChapterIds: string[],
   limit = 3,

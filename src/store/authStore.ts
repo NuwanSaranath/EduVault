@@ -13,6 +13,7 @@ interface AuthState {
   setHasHydrated: (value: boolean) => void;
 }
 
+// logged in user + onboarding flag, saved in AsyncStorage
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({

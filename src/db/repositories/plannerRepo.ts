@@ -1,5 +1,5 @@
 import type { PlannerEvent } from '@/types';
-import { getDb } from '../index';
+import { getDb, runInTransaction } from '../index';
 import { enqueue } from './outboxRepo';
 
 interface Row {
@@ -7,16 +7,13 @@ interface Row {
   updated_at: string;
 }
 
-/**
- * Planner events are the one genuinely mutable user entity, so rows carry an
- * `updated_at` and sync under last-write-wins. Deletes are soft (deleted = 1)
- * so the tombstone survives long enough to be pushed; the row is dropped only
- * once the remote delete is acknowledged.
- */
+// planner events can be edited so they have updated_at and use last write
+// wins. delete is soft (deleted = 1) so the delete can still be pushed, the row
+// is removed after firestore confirms
 export async function upsertEvent(event: PlannerEvent): Promise<void> {
   const db = await getDb();
   const updatedAt = new Date().toISOString();
-  await db.withTransactionAsync(async () => {
+  await runInTransaction(db, async () => {
     await db.runAsync(
       `INSERT OR REPLACE INTO planner_events (id, payload, updated_at, deleted, synced)
          VALUES (?, ?, ?, 0, 0)`,
@@ -36,7 +33,7 @@ export async function upsertEvent(event: PlannerEvent): Promise<void> {
 export async function softDeleteEvent(eventId: string): Promise<void> {
   const db = await getDb();
   const updatedAt = new Date().toISOString();
-  await db.withTransactionAsync(async () => {
+  await runInTransaction(db, async () => {
     await db.runAsync(
       'UPDATE planner_events SET deleted = 1, synced = 0, updated_at = ? WHERE id = ?',
       updatedAt,
@@ -51,7 +48,7 @@ export async function softDeleteEvent(eventId: string): Promise<void> {
   });
 }
 
-/** Hard-removes a tombstone once the remote delete succeeded. */
+// actually delete it after the remote delete worked
 export async function purgeEvent(eventId: string): Promise<void> {
   const db = await getDb();
   await db.runAsync('DELETE FROM planner_events WHERE id = ?', eventId);
@@ -62,6 +59,7 @@ export async function markEventSynced(eventId: string): Promise<void> {
   await db.runAsync('UPDATE planner_events SET synced = 1 WHERE id = ?', eventId);
 }
 
+// not deleted ones
 export async function getEvents(): Promise<PlannerEvent[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<Row>(
@@ -70,6 +68,7 @@ export async function getEvents(): Promise<PlannerEvent[]> {
   return rows.map((r) => JSON.parse(r.payload) as PlannerEvent);
 }
 
+// for last write wins
 export async function getEventUpdatedAt(eventId: string): Promise<string | null> {
   const db = await getDb();
   const row = await db.getFirstAsync<{ updated_at: string }>(

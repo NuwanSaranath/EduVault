@@ -10,19 +10,13 @@ import {
 } from '@/db/repositories/attemptRepo';
 import { readSnapshot, writeSnapshot } from '@/db/repositories/progressRepo';
 
-/**
- * Progress state.
- *
- * No `persist` middleware here, unlike the other stores. This state is backed by
- * SQLite, and layering AsyncStorage on top would give two copies of the same
- * facts with no rule for which wins after a sync. The store is hydrated once at
- * boot by `hydrateProgressFromDb` and every mutation writes through to the
- * database, which also enqueues the outbox row.
- *
- * Mutations are optimistic: state updates synchronously and the write is fired
- * without awaiting. A student finishing a quiz sees their XP immediately whether
- * they are online, offline, or mid-handover between cells.
- */
+// Progress (xp, streak, badges...).
+// No persist here, it's stored in sqlite. Using AsyncStorage too would give
+// two copies and no way to know which is right after a sync.
+// Loaded once at startup by hydrateProgressFromDb, every change writes to the
+// db (which also adds an outbox row).
+// State updates right away and the save isn't awaited, so xp shows instantly
+// even offline.
 interface ProgressState {
   xp: number;
   streakDays: number;
@@ -56,7 +50,7 @@ function isYesterday(previousIso: string, todayIso: string): boolean {
   return isSameDay(previous.toISOString(), yesterday.toISOString());
 }
 
-/** Questions answered today, derived rather than stored so it cannot drift. */
+// worked out from attempts instead of stored, so it can't get out of sync
 function countAnsweredToday(attempts: QuizAttempt[], todayIso: string): number {
   return attempts
     .filter((a) => isSameDay(a.takenAt, todayIso))
@@ -112,18 +106,15 @@ export const useProgressStore = create<ProgressState>()((set, get) => ({
 
     get().touchStudySession();
 
-    // Fire-and-forget: the local row and its outbox entry are written in one
-    // transaction, so a failure here cannot leave a half-saved attempt. Awaiting
-    // would block the result screen on disk I/O for no user benefit.
+    // not awaited. row + outbox are one transaction so it can't half save,
+    // and no need to make the result screen wait
     void saveAttempt(attempt);
-    void persistSnapshot();
   },
 
   addPastPaperResult: (result) => {
     set((state) => ({ pastPaperResults: [result, ...state.pastPaperResults] }));
     get().touchStudySession();
     void savePaperResult(result);
-    void persistSnapshot();
   },
 
   markChapterCompleted: (chapterId) => {
@@ -131,7 +122,6 @@ export const useProgressStore = create<ProgressState>()((set, get) => ({
       completedChapterIds: [...new Set([...state.completedChapterIds, chapterId])],
     }));
     get().touchStudySession();
-    void persistSnapshot();
   },
 
   touchStudySession: () => {
@@ -144,8 +134,7 @@ export const useProgressStore = create<ProgressState>()((set, get) => ({
         state.lastStudyDateIso !== null && isYesterday(state.lastStudyDateIso, now);
       return {
         lastStudyDateIso: now,
-        // Any gap longer than a day restarts the streak at 1, not 0 — today
-        // still counts as a study day.
+        // missed a day -> back to 1 (today still counts)
         streakDays: continuesStreak ? state.streakDays + 1 : 1,
       };
     });
@@ -153,12 +142,8 @@ export const useProgressStore = create<ProgressState>()((set, get) => ({
   },
 }));
 
-/**
- * Writes the current counters to SQLite and queues them for sync.
- *
- * Reads straight from the store rather than taking a parameter so callers cannot
- * accidentally persist a stale snapshot assembled before their own `set`.
- */
+// save current counters to sqlite and queue sync. reads from the store
+// directly so nobody passes in an old copy
 async function persistSnapshot(): Promise<void> {
   const state = useProgressStore.getState();
   await writeSnapshot({
@@ -171,7 +156,7 @@ async function persistSnapshot(): Promise<void> {
   });
 }
 
-/** Called once from `useAppBootstrap`, before the sync engine starts. */
+// called once from useAppBootstrap before sync starts
 export async function hydrateProgressFromDb(): Promise<void> {
   const [snapshot, attempts, results] = await Promise.all([
     readSnapshot(),

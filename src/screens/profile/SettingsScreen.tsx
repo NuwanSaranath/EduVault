@@ -14,22 +14,27 @@ import { isFirebaseConfigured } from '@/services/firebase';
 import { useThemeStore } from '@/store/themeStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useSyncStore } from '@/store/syncStore';
+import { formatTimeAgo } from '@/utils/format';
 
+/** Formats a byte count as B / KB / MB. */
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/** Formats an ISO timestamp for display, or "Never". */
 function formatStamp(iso: string | null): string {
   if (!iso) return 'never';
   const date = new Date(iso);
-  return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], {
+  // like: 12 min ago · 06/11/2026 14:32
+  return `${formatTimeAgo(iso)} · ${date.toLocaleDateString()} ${date.toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
   })}`;
 }
 
+/** Settings: Offline & Sync panel, storage budget, Data Saver, preferences and developer tools. */
 export function SettingsScreen() {
   const mode = useThemeStore((s) => s.mode);
   const setMode = useThemeStore((s) => s.setMode);
@@ -51,6 +56,7 @@ export function SettingsScreen() {
   const [seeding, setSeeding] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
+  /** Reloads cache usage, unsynced counts and queued photo bytes. */
   const refreshStorage = useCallback(async () => {
     const [usage, counts] = await Promise.all([getCacheUsage(), unsyncedCounts()]);
     setCache(usage);
@@ -69,6 +75,7 @@ export function SettingsScreen() {
     })();
   }, [refreshStorage]);
 
+  /** Turns reminders on (asking for permission first) or off. */
   const onToggleNotifications = async (value: boolean) => {
     if (value) {
       const granted = await requestNotificationPermission();
@@ -83,6 +90,7 @@ export function SettingsScreen() {
     setNotificationsEnabled(value);
   };
 
+  /** Deletes downloaded chapter PDFs. */
   const clearDownloads = async () => {
     const dir = FileSystem.documentDirectory;
     if (!dir) return;
@@ -92,6 +100,7 @@ export function SettingsScreen() {
     setDownloadedFiles([]);
   };
 
+  /** Runs a manual sync, then refreshes the storage figures. */
   const onSyncNow = async () => {
     setSyncing(true);
     try {
@@ -130,6 +139,7 @@ export function SettingsScreen() {
     );
   };
 
+  /** Developer action: confirms, then publishes the bundled content to Firestore. */
   const onSeedBackend = () => {
     Alert.alert(
       'Publish content to Firestore?',

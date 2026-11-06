@@ -46,6 +46,7 @@ const SHELLS = [1, 2, 3];
 /** When each shell begins drawing. */
 const SHELL_AT = [0.6, 5.2, 11.2];
 
+/** Scene: tree of quantum numbers n → l → mₗ. */
 export function QuantumTree({ t, width, height, isDark, reduceMotion }: SceneProps) {
   const c = sceneColors(isDark);
 
@@ -84,6 +85,7 @@ export function QuantumTree({ t, width, height, isDark, reduceMotion }: ScenePro
     return offsets;
   }, [tree]);
 
+  /** y position of a row in the tree. */
   const yOfRow = (row: number) => geo.top + (row + 0.5) * geo.rowH;
 
   return (

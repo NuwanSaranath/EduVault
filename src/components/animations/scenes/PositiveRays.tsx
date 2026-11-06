@@ -72,6 +72,7 @@ function deflectionOf(em: number): number {
   return clamp((Math.log10(em) - lo) / (hi - lo)) * 0.82;
 }
 
+/** Scene: positive-ray practical — deflection depends on e/m of each gas. */
 export function PositiveRays({ t, width, height, isDark, reduceMotion }: SceneProps) {
   const c = sceneColors(isDark);
 
@@ -129,6 +130,7 @@ export function PositiveRays({ t, width, height, isDark, reduceMotion }: ScenePr
     const p1 = x0 + span * 0.66;
     const drop = half * deflect;
 
+    /** Vertical position of a ray at horizontal position x (straight, then deflected). */
     const yAt = (x: number): number => {
       const through = (x - x0) / span;
       const a = (p0 - x0) / span;

@@ -1,15 +1,10 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import type { Chapter, Lesson, PastPaper, Question, Subject } from '@/types';
-import { getDb } from '../index';
+import { getDb, runInTransaction } from '../index';
 
-/**
- * Read-only syllabus content cached from Firestore.
- *
- * Every row stores the full entity as JSON in `payload` and lifts only the
- * columns we filter or sort on. That keeps the schema stable when a content
- * type grows a field (and `Lesson` grows them often — `practiceItems`,
- * `videoSuggestions`, …) without forcing a migration.
- */
+// Syllabus content cached from firestore (read only).
+// Whole object goes in `payload` as json, only columns we filter/sort on get
+// their own column. Lessons get new fields a lot so this avoids migrations.
 
 interface PayloadRow {
   payload: string;
@@ -19,9 +14,9 @@ function parse<T>(rows: PayloadRow[]): T[] {
   return rows.map((r) => JSON.parse(r.payload) as T);
 }
 
+// rough size of a payload for the cache limit
 function byteLength(value: string): number {
-  // Lesson payloads are ASCII-heavy but carry Sinhala text, so count UTF-8
-  // bytes rather than string length — the cache budget is in real bytes.
+  // count utf-8 bytes not string length, lessons have sinhala text
   let bytes = 0;
   for (let i = 0; i < value.length; i += 1) {
     const code = value.charCodeAt(i);
@@ -35,10 +30,10 @@ function byteLength(value: string): number {
   return bytes;
 }
 
-// ── Writes (called by the pull side of the sync engine, and by the seeder) ──
+// writes (used by pull and the seeder)
 
 export async function upsertSubjects(db: SQLiteDatabase, items: Subject[], updatedAt: string) {
-  await db.withTransactionAsync(async () => {
+  await runInTransaction(db, async () => {
     for (const item of items) {
       await db.runAsync(
         'INSERT OR REPLACE INTO subjects (id, payload, updated_at) VALUES (?, ?, ?)',
@@ -51,7 +46,7 @@ export async function upsertSubjects(db: SQLiteDatabase, items: Subject[], updat
 }
 
 export async function upsertChapters(db: SQLiteDatabase, items: Chapter[], updatedAt: string) {
-  await db.withTransactionAsync(async () => {
+  await runInTransaction(db, async () => {
     for (const item of items) {
       await db.runAsync(
         `INSERT OR REPLACE INTO chapters (id, subject_id, sort_order, payload, updated_at)
@@ -66,12 +61,13 @@ export async function upsertChapters(db: SQLiteDatabase, items: Chapter[], updat
   });
 }
 
+// also stores the byte size
 export async function upsertLessons(db: SQLiteDatabase, items: Lesson[], updatedAt: string) {
-  await db.withTransactionAsync(async () => {
+  await runInTransaction(db, async () => {
     for (const item of items) {
       const payload = JSON.stringify(item);
-      // COALESCE keeps the existing last_read_at so a content refresh does not
-      // reset a lesson's LRU position and make it a fresh eviction candidate.
+      // COALESCE keeps last_read_at, otherwise every refresh would make the
+      // lesson look unread and it'd get evicted first
       await db.runAsync(
         `INSERT INTO lessons (id, chapter_id, payload, updated_at, bytes)
            VALUES (?, ?, ?, ?, ?)
@@ -91,7 +87,7 @@ export async function upsertLessons(db: SQLiteDatabase, items: Lesson[], updated
 }
 
 export async function upsertQuestions(db: SQLiteDatabase, items: Question[], updatedAt: string) {
-  await db.withTransactionAsync(async () => {
+  await runInTransaction(db, async () => {
     for (const item of items) {
       await db.runAsync(
         `INSERT OR REPLACE INTO questions
@@ -110,7 +106,7 @@ export async function upsertQuestions(db: SQLiteDatabase, items: Question[], upd
 }
 
 export async function upsertPastPapers(db: SQLiteDatabase, items: PastPaper[], updatedAt: string) {
-  await db.withTransactionAsync(async () => {
+  await runInTransaction(db, async () => {
     for (const item of items) {
       await db.runAsync(
         `INSERT OR REPLACE INTO past_papers (id, subject_id, year, payload, updated_at)
@@ -125,13 +121,14 @@ export async function upsertPastPapers(db: SQLiteDatabase, items: PastPaper[], u
   });
 }
 
-// ── Reads (called by the service layer) ────────────────────────────────────
+// reads (used by services)
 
 export async function getSubjects(): Promise<Subject[]> {
   const db = await getDb();
   return parse<Subject>(await db.getAllAsync<PayloadRow>('SELECT payload FROM subjects'));
 }
 
+// in syllabus order
 export async function getChaptersBySubject(subjectId: string): Promise<Chapter[]> {
   const db = await getDb();
   return parse<Chapter>(
@@ -161,12 +158,8 @@ export async function getLessonsByChapter(chapterId: string): Promise<Lesson[]> 
   );
 }
 
-/**
- * Fetches one lesson and stamps its LRU position.
- *
- * The `last_read_at` write is what makes eviction meaningful — without it
- * every lesson looks equally cold and the cache budget would evict at random.
- */
+// also updates last_read_at. without this every lesson looks the same age
+// and the cache would delete random ones
 export async function getLesson(lessonId: string): Promise<Lesson | null> {
   const db = await getDb();
   const row = await db.getFirstAsync<PayloadRow>(
@@ -209,6 +202,7 @@ export async function getAllQuestions(): Promise<Question[]> {
   return parse<Question>(await db.getAllAsync<PayloadRow>('SELECT payload FROM questions'));
 }
 
+// subjectId is optional
 export async function getPastPapers(subjectId?: string): Promise<PastPaper[]> {
   const db = await getDb();
   const rows = subjectId
@@ -229,20 +223,15 @@ export async function getPastPaper(paperId: string): Promise<PastPaper | null> {
   return row ? (JSON.parse(row.payload) as PastPaper) : null;
 }
 
-/** True when content has never been pulled — the caller should seed. */
+// true if nothing was loaded yet, caller should seed
 export async function isContentEmpty(): Promise<boolean> {
   const db = await getDb();
   const row = await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM subjects');
   return (row?.n ?? 0) === 0;
 }
 
-/**
- * Lessons to suggest next, cheapest-to-resume first.
- *
- * Ordering puts never-opened lessons ahead of ones already read, so the home
- * screen suggests new ground rather than re-recommending what the student just
- * finished. Chapters they have completed are excluded outright.
- */
+// lessons to suggest on home. not opened ones first, skip chapters that
+// are already done
 export async function getRecommendedLessons(
   limit: number,
   excludeChapterIds: string[],

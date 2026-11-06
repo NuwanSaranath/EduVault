@@ -58,6 +58,7 @@ const VISIBLE_COLOURS = [
   { nm: 750, colour: '#EF4444' },
 ];
 
+/** Scene: the electromagnetic spectrum, wavelength against frequency. */
 export function EmSpectrum({ t, width, height, isDark, reduceMotion }: SceneProps) {
   const c = sceneColors(isDark);
 

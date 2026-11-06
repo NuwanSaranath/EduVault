@@ -10,30 +10,21 @@ import { hydratePlannerFromDb } from '@/store/plannerStore';
 
 export type BootstrapPhase = 'starting' | 'ready' | 'failed';
 
-/**
- * Brings the persistence and sync layers up before the first screen renders.
- *
- * Order matters and is not arbitrary:
- *   1. Open SQLite and run migrations — everything below needs the schema.
- *   2. Seed bundled content if the cache is empty, so a first launch with no
- *      signal still has a syllabus to show.
- *   3. Hydrate the Zustand stores from SQLite, making the database the source of
- *      truth rather than AsyncStorage.
- *   4. Start the sync engine last, so its first drain cannot race a half-built
- *      store and push a partial snapshot.
- *
- * A failure here is reported, not swallowed. If the database cannot open, the app
- * has no offline story at all, and silently falling back to an empty UI would be
- * indistinguishable from having no content.
- */
+// Sets up the db and sync before the first screen.
+// Order matters:
+//   1. open sqlite + migrations
+//   2. load bundled content if empty (so first launch offline isn't empty)
+//   3. load the stores from sqlite
+//   4. start sync last so it doesn't push half loaded data
+// If the db can't open we show an error, an empty app would just be confusing.
 export function useAppBootstrap(): { phase: BootstrapPhase; error: string | null } {
   const [phase, setPhase] = useState<BootstrapPhase>('starting');
   const [error, setError] = useState<string | null>(null);
   const started = useRef(false);
 
   useEffect(() => {
-    // StrictMode/Fast Refresh can fire effects twice; the engine must only be
-    // wired once or every connectivity change would drain in duplicate.
+    // effects can run twice in dev (strict mode / fast refresh), only start once
+    // or every network change would sync twice
     if (started.current) return;
     started.current = true;
 
@@ -52,8 +43,7 @@ export function useAppBootstrap(): { phase: BootstrapPhase; error: string | null
 
         useSyncStore.getState().bind();
         stopSync = startSyncEngine({
-          // Read through the store rather than capturing the value, so toggling
-          // Data Saver changes behaviour without restarting the engine.
+          // read it each time so the toggle works without restarting sync
           getDataSaverEnabled: () => useSettingsStore.getState().dataSaverEnabled,
         });
 

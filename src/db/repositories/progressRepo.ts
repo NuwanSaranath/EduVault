@@ -1,19 +1,11 @@
 import { EMPTY_SNAPSHOT, type ProgressSnapshot } from '@/features/progress/snapshot';
-import { getDb } from '../index';
+import { getDb, runInTransaction } from '../index';
 import { enqueue } from './outboxRepo';
 
-/**
- * Persistence for the aggregate progress counters (XP, streak, completion sets).
- *
- * Unlike attempts, this is a single mutable document rather than an event log,
- * so it is the one entity that genuinely needs a merge strategy. It lives in
- * `sync_meta` because there is exactly one row per user — a dedicated table
- * would be a one-row table.
- *
- * The shape itself is declared in features/progress/snapshot, not here, so the
- * merge strategies and their tests can use it without pulling SQLite (and its
- * native dependencies) into pure logic.
- */
+// Saves xp, streak, completed chapters and badges.
+// It's one object, not a log like attempts, so it needs merging on sync.
+// Stored in sync_meta since it's only one row.
+// The type lives in features/progress/snapshot so merge tests don't need sqlite.
 export { EMPTY_SNAPSHOT, type ProgressSnapshot };
 
 const SNAPSHOT_KEY = 'progress:snapshot';
@@ -32,15 +24,11 @@ export async function readSnapshot(): Promise<ProgressSnapshot> {
   }
 }
 
-/**
- * Writes the snapshot locally and queues a push.
- *
- * `op: 'update'` rather than 'create' because the push side merges against
- * whatever the server already holds instead of overwriting it.
- */
+// save locally and queue a push. op is 'update' because push merges with
+// what's on the server instead of overwriting
 export async function writeSnapshot(snapshot: ProgressSnapshot): Promise<void> {
   const db = await getDb();
-  await db.withTransactionAsync(async () => {
+  await runInTransaction(db, async () => {
     await db.runAsync(
       'INSERT OR REPLACE INTO sync_meta (key, value) VALUES (?, ?)',
       SNAPSHOT_KEY,
@@ -55,7 +43,7 @@ export async function writeSnapshot(snapshot: ProgressSnapshot): Promise<void> {
   });
 }
 
-/** Local write with no push — used when applying a pulled remote snapshot. */
+// save without pushing, for when we got it from the server
 export async function writeSnapshotQuiet(snapshot: ProgressSnapshot): Promise<void> {
   const db = await getDb();
   await db.runAsync(
@@ -65,7 +53,7 @@ export async function writeSnapshotQuiet(snapshot: ProgressSnapshot): Promise<vo
   );
 }
 
-// ── Pull cursors ───────────────────────────────────────────────────────────
+// pull cursors
 
 export async function getCursor(collection: string): Promise<string | null> {
   const db = await getDb();
@@ -82,5 +70,28 @@ export async function setCursor(collection: string, value: string): Promise<void
     'INSERT OR REPLACE INTO sync_meta (key, value) VALUES (?, ?)',
     `cursor:${collection}`,
     value,
+  );
+}
+
+// last sync time
+
+const LAST_SYNCED_KEY = 'sync:lastSyncedAt';
+
+// kept in sqlite so we still have it after restarting the app offline
+export async function getLastSyncedAt(): Promise<string | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ value: string }>(
+    'SELECT value FROM sync_meta WHERE key = ?',
+    LAST_SYNCED_KEY,
+  );
+  return row?.value ?? null;
+}
+
+export async function setLastSyncedAt(iso: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    'INSERT OR REPLACE INTO sync_meta (key, value) VALUES (?, ?)',
+    LAST_SYNCED_KEY,
+    iso,
   );
 }

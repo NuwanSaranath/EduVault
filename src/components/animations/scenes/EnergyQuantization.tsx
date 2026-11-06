@@ -23,6 +23,7 @@ import { SceneLabel } from '../SceneLabel';
 
 const STEPS = 5;
 
+/** Scene: ramp vs stairs — energy can only take fixed (quantised) levels. */
 export function EnergyQuantization({ t, width, height, isDark, reduceMotion }: SceneProps) {
   const c = sceneColors(isDark);
 

@@ -3,15 +3,9 @@ import { fetchSubjectsForStream } from '@/services/subjects';
 import { useAuthStore } from '@/store/authStore';
 import { useAsyncData } from './useAsyncData';
 
-/**
- * The signed-in student's subjects, read from SQLite.
- *
- * Five screens need exactly this, and each was previously importing the bundled
- * `subjectsForStream` directly — which meant a content update pulled from
- * Firestore would never appear on any of them. Centralising it here makes the
- * database the single read path and gives one place to change if subject
- * selection ever becomes per-user rather than per-stream.
- */
+// subjects for the logged in student's stream, from sqlite.
+// screens used to import the bundled list directly so downloaded updates never
+// showed up. now they all use this
 export function useStreamSubjects(): {
   subjects: Subject[];
   stream: Stream;

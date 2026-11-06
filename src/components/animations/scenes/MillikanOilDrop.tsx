@@ -25,6 +25,7 @@ import { SceneLabel } from '../SceneLabel';
 /** Measured charges, as multiples of e — the shape of Millikan's real data. */
 const MEASURED = [2, 5, 3, 8, 4, 6, 3, 7];
 
+/** Scene: Millikan oil-drop practical — balancing a charged drop in a field. */
 export function MillikanOilDrop({ t, width, height, isDark, reduceMotion }: SceneProps) {
   const c = sceneColors(isDark);
 
@@ -72,6 +73,7 @@ export function MillikanOilDrop({ t, width, height, isDark, reduceMotion }: Scen
 
   /** Chart scale: tallest bar fits the plotting area. */
   const maxMultiple = Math.max(...MEASURED);
+  /** Height of a force bar for the given magnitude. */
   const barH = (m: number) =>
     ((geo.chartBottom - geo.chartTop) * m) / (maxMultiple + 1);
 

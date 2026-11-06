@@ -10,6 +10,7 @@ interface InputProps extends TextInputProps {
   secureToggle?: boolean;
 }
 
+// text input with label, icon, error and show/hide password
 export function Input({ label, error, icon, secureToggle, secureTextEntry, ...rest }: InputProps) {
   const [hidden, setHidden] = useState(!!secureTextEntry);
 

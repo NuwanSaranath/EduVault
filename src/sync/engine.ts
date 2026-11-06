@@ -7,43 +7,36 @@ import {
   pendingCount,
   retryDeadLetters,
 } from '@/db/repositories/outboxRepo';
+import { getLastSyncedAt, setLastSyncedAt } from '@/db/repositories/progressRepo';
 import { isFirebaseConfigured } from '@/services/firebase';
 import { PermanentPushError, pushRow } from './push';
 import { pullContent } from './pull';
 import { backoffMs, syncPlan, type ConnectionType, type NetworkSnapshot, type SyncPlan } from './policy';
 
-/**
- * The sync engine.
- *
- * Owns the answer to "is this device in step with the server", and is the only
- * thing allowed to mutate outbox attempt counters. It is deliberately *not* a
- * React hook: drains are triggered by NetInfo and by explicit user action, both
- * of which can happen while no relevant screen is mounted.
- *
- * Lifecycle
- *   startSyncEngine()  once, from the root layout
- *   → NetInfo listener fires on every connectivity transition
- *   → drain() pushes the outbox oldest-first, then optionally pulls content
- *   → subscribers (syncStore) re-render the status banner
- *
- * The engine never throws to its caller. A failed drain is an expected state,
- * not an error — that is the whole premise of an offline-first app.
- */
+// Sync engine.
+// Not a hook on purpose: NetInfo and the "Sync now" button can trigger a sync
+// when no screen is open.
+//
+// startSyncEngine() runs once from the root layout. NetInfo then calls drain()
+// when the network comes back. drain() pushes the outbox (oldest first) and
+// pulls content if allowed. syncStore listens and updates the banner.
+//
+// It never throws. Failing to sync while offline is normal for this app.
 
-/** A row that fails this many times stops being retried automatically. */
+// after this many fails a row stops retrying by itself
 export const MAX_ATTEMPTS = 5;
 
 export type SyncPhase = 'idle' | 'syncing' | 'offline' | 'error';
 
 export interface SyncStatus {
   phase: SyncPhase;
-  /** Outbox rows still waiting (excludes dead letters). */
+  // rows still waiting (not counting dead letters)
   pendingCount: number;
-  /** Rows that exhausted MAX_ATTEMPTS and need manual retry. */
+  // rows that hit MAX_ATTEMPTS, need manual retry
   deadLetterCount: number;
   lastSyncedAt: string | null;
   lastError: string | null;
-  /** Why the current plan allows/defers what it does. */
+  // why sync is allowed / held back right now
   planReason: string;
   isOnline: boolean;
   connectionType: ConnectionType;
@@ -63,8 +56,7 @@ const INITIAL_STATUS: SyncStatus = {
 let status: SyncStatus = INITIAL_STATUS;
 const listeners = new Set<(s: SyncStatus) => void>();
 
-/** In-memory backoff gate, keyed by outbox row id. Intentionally not persisted:
- *  a restart is itself a reason to retry immediately. */
+// backoff time per outbox row id. only in memory, a restart can just retry
 const nextEligibleAt = new Map<number, number>();
 
 let draining = false;
@@ -75,12 +67,13 @@ let lastNet: NetworkSnapshot = {
 };
 let getDataSaver: () => boolean = () => false;
 
-// ── Status plumbing ────────────────────────────────────────────────────────
+// status
 
 export function getSyncStatus(): SyncStatus {
   return status;
 }
 
+// returns unsubscribe
 export function subscribeToSync(listener: (s: SyncStatus) => void): () => void {
   listeners.add(listener);
   listener(status);
@@ -100,7 +93,7 @@ async function refreshCounts(): Promise<void> {
   setStatus({ pendingCount: pending, deadLetterCount: dead.length });
 }
 
-// ── Network snapshot ───────────────────────────────────────────────────────
+// network
 
 function toSnapshot(state: NetInfoState): NetworkSnapshot {
   const details = state.details as { isConnectionExpensive?: boolean } | null;
@@ -116,15 +109,11 @@ export function currentPlan(): SyncPlan {
   return syncPlan(lastNet, getDataSaver());
 }
 
-// ── The drain ──────────────────────────────────────────────────────────────
+// drain
 
-/**
- * Pushes queued mutations, then pulls content if the plan permits.
- *
- * Re-entrancy is guarded rather than queued: if a drain is already running,
- * a second trigger is a no-op. The listener will fire again on the next
- * transition, and nothing is lost because the outbox is the source of truth.
- */
+// push the outbox, then pull content if the plan allows it.
+// if a drain is already running just skip. the outbox keeps everything so
+// nothing gets lost, it will run again on the next network change.
 export async function drain(options: { force?: boolean } = {}): Promise<void> {
   if (draining) return;
 
@@ -137,8 +126,7 @@ export async function drain(options: { force?: boolean } = {}): Promise<void> {
   }
 
   if (!isFirebaseConfigured()) {
-    // No backend wired up yet. This is the same code path as being offline —
-    // work accumulates locally and flushes once a config exists.
+    // no firebase config yet, treat it like offline. things stay queued
     setStatus({
       phase: 'offline',
       planReason: 'No backend configured — changes queued locally',
@@ -169,12 +157,12 @@ export async function drain(options: { force?: boolean } = {}): Promise<void> {
         nextEligibleAt.set(row.id, Date.now() + backoffMs(row.attempts + 1));
 
         if (error instanceof PermanentPushError) {
-          // Bad data, not a bad network. Skip it and keep draining the rest.
+          // bad data not bad network, skip it and carry on
           continue;
         }
 
-        // Likely the connection died mid-batch. Stop now instead of burning
-        // the retry budget of every remaining row on the same failure.
+        // probably lost connection, stop here so the other rows don't use up
+        // their retries on the same problem
         networkFailure = true;
         setStatus({ lastError: message });
         break;
@@ -186,10 +174,14 @@ export async function drain(options: { force?: boolean } = {}): Promise<void> {
     }
 
     await refreshCounts();
-    setStatus({
-      phase: networkFailure ? 'error' : 'idle',
-      lastSyncedAt: networkFailure ? status.lastSyncedAt : new Date().toISOString(),
-    });
+
+    let lastSyncedAt = status.lastSyncedAt;
+    if (!networkFailure) {
+      lastSyncedAt = new Date().toISOString();
+      // save it so it shows even after a restart
+      await setLastSyncedAt(lastSyncedAt);
+    }
+    setStatus({ phase: networkFailure ? 'error' : 'idle', lastSyncedAt });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     setStatus({ phase: 'error', lastError: message });
@@ -199,33 +191,35 @@ export async function drain(options: { force?: boolean } = {}): Promise<void> {
   }
 }
 
-/** Manual "Sync now" from Settings. Bypasses the offline short-circuit so the
- *  user gets a real error instead of silence. */
+// "Sync now" button. ignores the offline check so the user sees the real error
 export async function syncNow(): Promise<void> {
   await drain({ force: true });
 }
 
-/** Settings action: reset dead letters and try them again. */
+// reset dead letters and try again
 export async function retryFailed(): Promise<void> {
   await retryDeadLetters();
   nextEligibleAt.clear();
   await drain({ force: true });
 }
 
-// ── Lifecycle ──────────────────────────────────────────────────────────────
+// start / stop
 
 export interface StartSyncOptions {
-  /** Read live from settingsStore so the toggle needs no engine restart. */
+  // read from settingsStore each time so toggling needs no restart
   getDataSaverEnabled: () => boolean;
 }
 
-/**
- * Wires the engine to connectivity changes.
- *
- * @returns an unsubscribe function for the NetInfo listener.
- */
+// hook up to NetInfo. returns a function to stop it
 export function startSyncEngine(options: StartSyncOptions): () => void {
   getDataSaver = options.getDataSaverEnabled;
+
+  // load last sync time from db (for offline start)
+  void getLastSyncedAt()
+    .then((saved) => {
+      if (saved && !status.lastSyncedAt) setStatus({ lastSyncedAt: saved });
+    })
+    .catch(() => {});
 
   const unsubscribe = NetInfo.addEventListener((state) => {
     const snapshot = toSnapshot(state);
@@ -239,15 +233,15 @@ export function startSyncEngine(options: StartSyncOptions): () => void {
       planReason: plan.reason,
     });
 
-    // Only drain on the offline → online edge. Android emits several events per
-    // transition; draining on each would fire redundant batches.
+    // only sync when going offline -> online. android sends a few events for
+    // one change and we don't want to sync for each
     if (wasOffline && plan.pushText) {
       void drain();
     }
   });
 
-  // Cold start: fetch once rather than waiting for the first transition, which
-  // may never come if the device is already online and stays that way.
+  // check once at start too, if the phone is already online there may be no
+  // change event for a long time
   void NetInfo.fetch().then((state) => {
     lastNet = toSnapshot(state);
     void drain();

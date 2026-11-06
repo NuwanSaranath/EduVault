@@ -100,6 +100,7 @@ const STEPS: Step[] = [
 const VIOLATION_FROM = 14.4;
 const VIOLATION_TO = 17.0;
 
+/** Scene: fills orbital boxes in Aufbau order, applying Hund's rule. */
 export function AufbauFilling({ t, width, height, isDark, reduceMotion }: SceneProps) {
   const c = sceneColors(isDark);
 

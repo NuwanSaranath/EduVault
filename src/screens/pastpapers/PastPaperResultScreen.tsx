@@ -14,6 +14,7 @@ import { palette } from '@/constants/theme';
 import { useExamStore } from '@/store/examStore';
 import { formatDuration } from '@/utils/format';
 
+/** Past-paper result: score, weak areas and the answer sheet in review mode. */
 export function PastPaperResultScreen() {
   const lastResult = useExamStore((s) => s.lastResult);
   const lastSheet = useExamStore((s) => s.lastSheet);

@@ -23,23 +23,23 @@ export interface Subject {
   totalChapters: number;
 }
 
-/** A diagram/photo a teacher should put on the board for a concept. */
+// a picture to show when teaching a concept
 export interface ImageSuggestion {
-  /** What the picture shows. */
+  // what it shows
   image: string;
-  /** The concept it is used to explain. */
+  // concept it explains
   usedToExplain: string;
-  /** Why this picture makes the concept click. */
+  // why it helps
   reason: string;
 }
 
-/** A video to watch, expressed as a search phrase so it survives dead links. */
+// video as a search phrase so it doesn't break like links do
 export interface VideoSuggestion {
-  /** YouTube search keywords. */
+  // youtube search words
   search: string;
-  /** What the student should watch for. */
+  // what to look for
   observe: string;
-  /** The takeaway. */
+  // what they should get from it
   learn: string;
 }
 
@@ -48,7 +48,7 @@ export type PracticeKind = 'MCQ' | 'Structured' | 'Past Paper';
 export interface PracticeItem {
   kind: PracticeKind;
   question: string;
-  /** MCQ choices; omitted for structured/essay style items. */
+  // mcq choices, not there for structured/essay
   options?: string[];
   answer: string;
   explanation: string;
@@ -58,9 +58,9 @@ export interface Lesson {
   id: string;
   chapterId: string;
   title: string;
-  /** Syllabus section number as printed in the resource book, e.g. "1.1". */
+  // section number from the resource book, e.g. "1.1"
   sectionNumber?: string;
-  /** Numbered sub-topics under this section, e.g. "1.1.1 කැතෝඩ කිරණවල ගුණ". */
+  // sub topics, e.g. "1.1.1 කැතෝඩ කිරණවල ගුණ"
   subtopics?: string[];
   notes: string;
   importantPoints: string[];
@@ -69,12 +69,11 @@ export interface Lesson {
   relatedQuestionIds: string[];
   audioUrl?: string;
   completed?: boolean;
-  // ---- Optional guided-teaching content. Lessons written in the full
-  // teaching format populate these; simpler lessons leave them undefined and
-  // the reader hides the corresponding tabs.
-  /** Short conversational hook that opens the lesson. */
+  // optional teaching content. full lessons fill these, simple ones don't and
+  // the reader hides those tabs
+  // short intro to start the lesson
   intro?: string;
-  /** Why the topic matters (exam weight, what it unlocks). */
+  // why it matters (exam marks etc.)
   whyImportant?: string;
   realLifeExamples?: string[];
   imageSuggestions?: ImageSuggestion[];
@@ -83,12 +82,8 @@ export interface Lesson {
   commonMistakes?: string[];
   examTips?: string[];
   practiceItems?: PracticeItem[];
-  /**
-   * Ids of animations to show for this lesson, resolved through
-   * features/animation/registry. Referenced by id rather than imported so
-   * lesson content stays data — a lesson pulled from Firestore can name an
-   * animation exactly as a bundled one does. Unknown ids are skipped.
-   */
+  // animation ids for this lesson (see features/animation/registry). ids not
+  // imports, so a lesson from firestore can use them too. unknown ids are skipped
   animationIds?: string[];
 }
 
@@ -143,12 +138,8 @@ export interface QuizAttemptAnswer {
 export interface QuizAttempt {
   id: string;
   subjectId: string;
-  /**
-   * How the questions were answered. 'Flashcards' is kept distinct from the
-   * quiz types because a flashcard grade is self-reported rather than tested —
-   * it is a valid weakness signal, but it should never be presented as an exam
-   * score.
-   */
+  // 'Flashcards' is separate because it's self marked, it counts for weak
+  // topics but shouldn't show as an exam score
   quizType: QuestionType | 'Mixed' | 'Flashcards';
   answers: QuizAttemptAnswer[];
   score: number;

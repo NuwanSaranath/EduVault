@@ -11,6 +11,7 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import { gradients } from '@/constants/theme';
 
+/** Branded splash shown while the app decides where to route. */
 export function SplashScreen() {
   const scale = useSharedValue(0.6);
   const opacity = useSharedValue(0);

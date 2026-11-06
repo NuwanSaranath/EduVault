@@ -11,6 +11,7 @@ import type { LeaderboardEntry, QuestionType } from '@/types';
 
 const quizTypes: (QuestionType | 'Mixed')[] = ['Mixed', 'MCQ', 'True/False', 'Short Answer'];
 
+/** Practice tab: quiz setup (subject + question type), daily challenge and leaderboard. */
 export function QuizHomeScreen() {
   const { subjects } = useStreamSubjects();
   const [subjectId, setSubjectId] = useState('');
@@ -27,6 +28,7 @@ export function QuizHomeScreen() {
     if (!subjectId && subjects.length > 0) setSubjectId(subjects[0].id);
   }, [subjectId, subjects]);
 
+  /** Picks adaptive questions for the chosen subject/type and starts a session. */
   const startQuiz = async () => {
     if (!subjectId) return;
     setStarting(true);
@@ -39,6 +41,7 @@ export function QuizHomeScreen() {
     }
   };
 
+  /** Starts the (random) daily challenge session. */
   const startDailyChallenge = async () => {
     setStarting(true);
     try {
@@ -50,6 +53,7 @@ export function QuizHomeScreen() {
     }
   };
 
+  /** Loads the leaderboard and opens its sheet. */
   const openLeaderboard = async () => {
     setLeaderboard(await fetchLeaderboard());
     setLeaderboardOpen(true);

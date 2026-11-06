@@ -9,6 +9,7 @@ interface ThemeState {
   setMode: (mode: ThemeMode) => void;
 }
 
+// system / light / dark, saved and applied with nativewind
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set) => ({

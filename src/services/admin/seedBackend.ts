@@ -5,20 +5,11 @@ import { questions } from '@/constants/data/questions';
 import { pastPapers } from '@/constants/data/pastPapers';
 import { getFirestoreDb, isFirebaseConfigured } from '@/services/firebase';
 
-/**
- * One-shot uploader that publishes the bundled syllabus to Firestore.
- *
- * Deliberately an in-app action rather than a standalone Node script. The
- * content lives in TypeScript modules behind the `@/` path alias, so a Node
- * seeder would need its own transpile + alias-resolution toolchain to read the
- * exact same data the app reads. Running it inside the app reuses Metro's module
- * graph, which means the seeded documents are guaranteed to match the types the
- * client expects — a separate script can drift.
- *
- * Exposed from the Settings screen in development only. Safe to run repeatedly:
- * every write is keyed by the entity id, so re-seeding overwrites rather than
- * duplicating.
- */
+// Uploads the bundled syllabus to firestore (dev only, button in settings).
+// Done in the app instead of a node script because the data is in ts files
+// using the @/ alias, a node script would need its own setup and could end up
+// different from what the app reads.
+// Safe to run again, docs use the entity id so it just overwrites.
 
 export interface SeedReport {
   subjects: number;
@@ -29,20 +20,15 @@ export interface SeedReport {
   batches: number;
 }
 
-/** Firestore caps a batch at 500 operations. */
+// firestore max is 500 per batch
 const BATCH_LIMIT = 450;
 
 interface Seedable {
   id: string;
 }
 
-/**
- * Writes one collection in batches, stamping every document with `updatedAt`.
- *
- * That stamp is the contract the pull cursor depends on: without it a document
- * is invisible to incremental sync, because `where('updatedAt', '>', cursor)`
- * cannot match a missing field.
- */
+// write one collection in batches and add updatedAt to every doc. pull
+// needs updatedAt (where updatedAt > cursor) or it never sees the doc
 async function seedCollection<T extends Seedable>(
   collectionName: string,
   items: T[],
@@ -57,7 +43,7 @@ async function seedCollection<T extends Seedable>(
 
     for (const item of slice) {
       const { id, ...rest } = item;
-      // The id becomes the document key, so it is not duplicated in the body.
+      // id is the doc key, no need to also put it in the body
       batch.set(doc(db, collectionName, id), { ...rest, updatedAt: stamp });
     }
 

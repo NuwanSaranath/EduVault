@@ -30,6 +30,7 @@ const SCALE_RATIO = 100_000;
 
 const DUST_COUNT = 34;
 
+/** Scene: zooms from a stadium-sized atom down to the nucleus to show its true scale. */
 export function AtomScale({ t, width, height, isDark, reduceMotion }: SceneProps) {
   const c = sceneColors(isDark);
 

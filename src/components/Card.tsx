@@ -4,6 +4,7 @@ interface CardProps extends ViewProps {
   onPress?: PressableProps['onPress'];
 }
 
+// rounded box, tappable if onPress is passed
 export function Card({ children, className, onPress, ...rest }: CardProps) {
   const base = `bg-card-light dark:bg-card-dark rounded-2xl p-4 shadow-sm shadow-black/5 ${className ?? ''}`;
 

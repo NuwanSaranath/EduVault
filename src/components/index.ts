@@ -12,7 +12,7 @@ export * from './LoadingSpinner';
 export * from './FilterChip';
 export * from './SectionHeader';
 
-// Custom components built for this project — see docs/08-custom-components.md
+// custom components made for this project, see docs/08-custom-components.md
 export * from './ExamCountdownRing';
 export * from './FlashcardDeck';
 export * from './AnswerSheetGrid';

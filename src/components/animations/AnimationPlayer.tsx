@@ -17,48 +17,26 @@ import {
 export interface AnimationPlayerProps {
   scene: AnimationScene;
   isDark: boolean;
-  /** Height of the drawing canvas. @default 260 */
+  // default 260
   canvasHeight?: number;
-  /**
-   * Set false when the animation is off-screen or its tab is hidden. The clock
-   * stops entirely rather than rendering frames nobody can see.
-   */
+  // false when off screen or tab hidden, stops the clock
   active?: boolean;
 }
 
-/**
- * Frame cap in frames per second.
- *
- * Constrained-design decision, not a performance accident. These scenes are
- * teaching diagrams of a few dozen SVG elements; at 30fps the motion is
- * perfectly smooth to the eye while costing roughly half the wake-ups of a
- * 60fps loop on a mid-range Android phone — the device this app targets. The cap
- * is enforced by skipping React updates, so the clock stays accurate even if a
- * frame is late.
- */
+// cap at 30fps. it's a few dozen svg elements so 30 looks smooth and it's
+// about half the work of 60 on a cheap android phone. we skip renders, the
+// clock itself stays correct
 const TARGET_FPS = 30;
 const FRAME_MS = 1000 / TARGET_FPS;
 
-/**
- * Plays one lesson animation.
- *
- * ## Why a JavaScript clock rather than Reanimated
- *
- * Every other animation in this app runs on the UI thread, and should. This one
- * does not, deliberately. A teaching animation has to keep a **Sinhala caption in
- * lockstep with the drawing** — the caption is the teaching, and the drawing is
- * the evidence. Captions are React state, so a UI-thread clock would have to
- * `runOnJS` on every stage boundary anyway, giving up the isolation that makes
- * UI-thread animation worthwhile while adding worklet complexity.
- *
- * Driving `t` from JS instead makes the caption, the highlighted stage chip, the
- * scrubber position and the drawing all derive from a single number in a single
- * render. They cannot drift apart, because there is nothing to drift.
- *
- * The cost is bounded and measured: one `setState` per frame at a capped 30fps,
- * rendering a few dozen SVG nodes. The clock stops completely when paused, when
- * finished, when `active` is false, and when the student has reduce-motion on.
- */
+// Plays one lesson animation.
+// Uses a js clock, not reanimated like the rest of the app. The sinhala caption
+// has to stay in sync with the drawing and captions are react state, so with
+// a ui thread clock we'd need runOnJS all the time anyway.
+// With t in js the caption, stage chip, scrubber and drawing all come from one
+// number in one render so they can't get out of sync.
+// Cost: one setState per frame at 30fps max. stops when paused, finished,
+// not active, or reduce motion is on.
 export function AnimationPlayer({
   scene,
   isDark,
@@ -73,19 +51,20 @@ export function AnimationPlayer({
   const [reduceMotion, setReduceMotion] = useState(false);
   const [trackWidth, setTrackWidth] = useState(0);
 
-  // The clock lives in refs: mutating them must not trigger a render, and the
-  // rAF callback must read the latest value without being re-created each frame.
+  // refs so changing them doesn't re-render, and the rAF callback always
+  // sees the latest value
   const rafRef = useRef<number | null>(null);
   const lastFrameRef = useRef(0);
   const tRef = useRef(0);
 
+  // jump to a time (clamped to duration)
   const setTime = useCallback((next: number) => {
     const clamped = clamp(next, 0, scene.duration);
     tRef.current = clamped;
     setT(clamped);
   }, [scene.duration]);
 
-  // ── Reduce motion ────────────────────────────────────────────────────────
+  // reduce motion
   useEffect(() => {
     let mounted = true;
     AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
@@ -100,16 +79,16 @@ export function AnimationPlayer({
     };
   }, []);
 
-  // ── Reset when the scene changes ─────────────────────────────────────────
+  // reset when the scene changes
   useEffect(() => {
     tRef.current = 0;
     setT(0);
     setPlaying(false);
   }, [scene.id]);
 
-  // ── The clock ────────────────────────────────────────────────────────────
+  // clock
   useEffect(() => {
-    // Reduce motion renders one static final frame and never starts a loop.
+    // reduce motion = one still frame at the end, no loop
     if (!playing || !active || reduceMotion) {
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
@@ -124,7 +103,7 @@ export function AnimationPlayer({
       const now = Date.now();
       const elapsed = now - lastFrameRef.current;
 
-      // Frame cap: advance only when a full frame's worth of time has passed.
+      // only update after a full frame's time
       if (elapsed >= FRAME_MS) {
         lastFrameRef.current = now;
         const next = tRef.current + elapsed / 1000;
@@ -152,14 +131,15 @@ export function AnimationPlayer({
     };
   }, [playing, active, reduceMotion, scene.duration]);
 
-  // Pause when the animation scrolls out of view or its tab is hidden.
+  // pause when scrolled away or tab hidden
   useEffect(() => {
     if (!active) setPlaying(false);
   }, [active]);
 
-  // ── Controls ─────────────────────────────────────────────────────────────
+  // controls
   const atEnd = t >= scene.duration - 0.01;
 
+  // play/pause, starts again if it's at the end
   const togglePlay = () => {
     if (reduceMotion) return;
     if (atEnd) {
@@ -185,13 +165,8 @@ export function AnimationPlayer({
     [scene.duration, setTime],
   );
 
-  /**
-   * Scrubbing.
-   *
-   * Pauses on touch-down so the clock does not fight the finger, and stays
-   * paused on release — a student who scrubs to a moment wants to look at it,
-   * not watch it run away.
-   */
+  // scrubbing. pause when touched and stay paused after, they probably want
+  // to look at that moment
   const scrub = Gesture.Pan()
     .onBegin((e) => {
       runOnJS(setPlaying)(false);
@@ -205,6 +180,7 @@ export function AnimationPlayer({
   const activeIndex = stageIndexAt(scene.stages, t);
   const progress = scene.duration > 0 ? t / scene.duration : 0;
 
+  // get canvas width so the scene can scale
   const onCanvasLayout = (e: LayoutChangeEvent) => {
     const w = e.nativeEvent.layout.width;
     if (Math.abs(w - width) > 1) setWidth(w);
@@ -214,7 +190,7 @@ export function AnimationPlayer({
 
   return (
     <View className="mb-6 overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700">
-      {/* ── Header ───────────────────────────────────────────────────────── */}
+      {/* header */}
       <View className="flex-row items-center gap-2 px-4 pb-2 pt-3">
         <View
           className="rounded-full px-2 py-0.5"
@@ -242,7 +218,7 @@ export function AnimationPlayer({
         {scene.purposeSi}
       </Text>
 
-      {/* ── Canvas ───────────────────────────────────────────────────────── */}
+      {/* canvas */}
       <View
         onLayout={onCanvasLayout}
         style={{ height: canvasHeight, backgroundColor: c.bg }}
@@ -259,7 +235,7 @@ export function AnimationPlayer({
         ) : null}
       </View>
 
-      {/* ── Scrubber ─────────────────────────────────────────────────────── */}
+      {/* scrubber */}
       <GestureDetector gesture={scrub}>
         <View
           className="px-4 py-3"
@@ -273,7 +249,7 @@ export function AnimationPlayer({
                 backgroundColor: palette.primary[600],
               }}
             />
-            {/* Stage boundaries as ticks, so the student can see the structure. */}
+            {/* ticks for each stage */}
             {scene.stages.map((stage) => (
               <View
                 key={stage.id}
@@ -288,7 +264,7 @@ export function AnimationPlayer({
         </View>
       </GestureDetector>
 
-      {/* ── Transport ────────────────────────────────────────────────────── */}
+      {/* play controls */}
       <View className="flex-row items-center justify-center gap-5 pb-3">
         <Pressable
           onPress={stepBack}
@@ -335,7 +311,7 @@ export function AnimationPlayer({
         </Pressable>
       </View>
 
-      {/* ── Stage chips: jump straight to any step ───────────────────────── */}
+      {/* stage chips, tap to jump */}
       <View className="flex-row flex-wrap gap-1.5 px-4 pb-3">
         {scene.stages.map((stage, i) => {
           const isActive = i === activeIndex;
@@ -368,15 +344,14 @@ export function AnimationPlayer({
         })}
       </View>
 
-      {/* ── Caption and takeaway ─────────────────────────────────────────── */}
+      {/* caption + takeaway */}
       {activeStage ? (
         <View className="border-t border-gray-100 px-4 py-3 dark:border-gray-800">
           <Text className="text-xs leading-5 text-gray-700 dark:text-gray-300">
             {activeStage.captionSi}
           </Text>
 
-          {/* The takeaway is the exam-relevant sentence, so it is visually
-              separated rather than buried in the narration. */}
+          {/* takeaway separate so the exam point stands out */}
           {activeStage.takeawaySi ? (
             <View
               className="mt-2.5 flex-row rounded-xl p-2.5"

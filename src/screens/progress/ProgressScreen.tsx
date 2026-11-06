@@ -8,16 +8,18 @@ import { chartColors, palette } from '@/constants/theme';
 import { useAsyncData } from '@/hooks/useAsyncData';
 import {
   computeSubjectProgress,
-  fetchSubjectChapterStats,
+  fetchSubjectChapters,
   fetchWeakestChapters,
 } from '@/services/progress';
 import { fetchSubjectsForStream } from '@/services/subjects';
 import { useAuthStore } from '@/store/authStore';
 import { useProgressStore } from '@/store/progressStore';
+import { chapterLessonTotals, useCompletedChapterIds } from '@/features/progress/completion';
 import { formatPercent } from '@/utils/format';
 
 const screenWidth = Dimensions.get('window').width - 40;
 
+/** Progress tab: charts, per-subject progress and the "Focus Next" weak topics. */
 export function ProgressScreen() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -38,7 +40,7 @@ export function ProgressScreen() {
     return Promise.all(
       subjects.map(async (subject) => ({
         subject,
-        chapterStats: await fetchSubjectChapterStats(subject.id),
+        chapters: await fetchSubjectChapters(subject.id),
       })),
     );
   }, [stream]);
@@ -47,7 +49,8 @@ export function ProgressScreen() {
   // weak areas named here are exactly the ones the next quiz will drill.
   const { data: weakest } = useAsyncData(() => fetchWeakestChapters(3), [quizAttempts.length]);
 
-  const subjectProgress = (subjectRows ?? []).map(({ subject, chapterStats }) => ({
+  const completedIds = useCompletedChapterIds();
+  const subjectProgress = (subjectRows ?? []).map(({ subject, chapters }) => ({
     subject,
     progress: computeSubjectProgress(
       subject.id,
@@ -55,7 +58,7 @@ export function ProgressScreen() {
       pastPaperResults.length === 0
         ? 0
         : (pastPaperResults[0].score / pastPaperResults[0].totalMarks) * 100,
-      chapterStats,
+      chapterLessonTotals(chapters, completedIds),
     ),
   }));
 
